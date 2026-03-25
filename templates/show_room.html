@@ -1,39 +1,42 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Document</title>
 </head>
 <body>
-    <form id="option_form">
-        <input type="text" id="add_option_box" maxlength="20">
-        <button type="submit">Add Option</button>
-    </form>
-    <script>
-        const socket = new WebSocket("ws://127.0.0.1:3000/ws/[ROOM_CODE]");
+    <main class="container">
+        <form id="option_form">
+            <input type="text" id="add_option_box" maxlength="20">
+            <button type="submit">Add Option</button>
+        </form>
+        <script>
+            const socket = new WebSocket("ws://127.0.0.1:3000/ws/[ROOM_CODE]");
 
-        socket.onopen = function() {
-            console.log("Connected to the server!");
-            socket.send("Hello from the browser!"); 
-        };
+            socket.onopen = function() {
+                console.log("Connected to the server!");
+                socket.send("Hello from the browser!"); 
+            };
 
-        const form = document.getElementById("option_form");
-        const inputBox = document.getElementById("add_option_box");
+            const form = document.getElementById("option_form");
+            const inputBox = document.getElementById("add_option_box");
 
-        form.addEventListener("submit", function(event) {
-            event.preventDefault(); 
-            const optionText = inputBox.value;            
-            socket.send(optionText);             
-            inputBox.value = ""; 
-        });
+            form.addEventListener("submit", function(event) {
+                event.preventDefault(); 
+                const optionText = inputBox.value;            
+                socket.send(optionText);             
+                inputBox.value = ""; 
+            });
 
-        socket.onmessage = function(event) {
-            if (event.data == "Room Not Found") {
-                window.location.href = "/room_not_found";
-            }
-            console.log("The server says: ", event.data);
-        };
-    </script>
+            socket.onmessage = function(event) {
+                if (event.data == "Room Not Found") {
+                    window.location.href = "/room_not_found";
+                }
+                console.log("The server says: ", event.data);
+            };
+        </script>
+    </main>
 </body>
 </html>

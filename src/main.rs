@@ -9,21 +9,21 @@ use std::sync::{Arc, Mutex};
 use tokio::net::TcpListener;
 use tokio::sync::broadcast::{Receiver, Sender};
 
+#[derive(Deserialize)]
+struct JoinRequest {
+    room_code: String,
+}
+
 struct GameState {
     tower: Sender<String>,
     options: Vec<String>,
 }
 
-fn build_gamestate(channel_num: usize) -> GameState {
+fn build_gamestate() -> GameState {
     GameState {
-        tower: Sender::new(channel_num),
+        tower: Sender::new(20),
         options: vec![],
     }
-}
-
-#[derive(Deserialize)]
-struct JoinRequest {
-    room_code: String,
 }
 
 #[tokio::main]
@@ -67,7 +67,7 @@ fn generate_room(rooms: &mut HashMap<String, GameState>) -> String {
             break;
         }
     }
-    rooms.insert(room_code.clone(), build_gamestate(10)); // somehow turn the room code into a usize (like some basic hashing function)
+    rooms.insert(room_code.clone(), build_gamestate());
     room_code
 }
 
@@ -106,19 +106,31 @@ async fn room_not_found() -> Html<&'static str> {
     Html(include_str!("../templates/room_not_found.html"))
 }
 
-fn add_option_to_room_and_get_options(
+fn get_sender_and_receiver(
     state: &Arc<Mutex<HashMap<String, GameState>>>,
-    option: String,
     room_code: &str,
-) -> Option<(Vec<String>, Sender<String>, Receiver<String>)> {
+) -> Option<(Sender<String>, Receiver<String>)> {
     let mut locked_rooms = state.lock().unwrap();
     let game_state = locked_rooms.get_mut(room_code)?;
-    // probaably should move these out of this function as we dont need to create these every time an option is added
+
     let new_sender = game_state.tower.clone();
     let new_receiver = game_state.tower.subscribe();
 
-    game_state.options.push(option);
-    Some((game_state.options.clone(), new_sender, new_receiver))
+    Some((new_sender, new_receiver))
+}
+
+fn add_option_to_room(
+    state: &Arc<Mutex<HashMap<String, GameState>>>,
+    option: String,
+    room_code: &str,
+    room_tower: &Sender<String>,
+) -> Option<()> {
+    let mut locked_rooms = state.lock().unwrap();
+    let game_state = locked_rooms.get_mut(room_code)?;
+
+    game_state.options.push(option.clone());
+    let _ = room_tower.send(option); // should handle this case eventually (where it errors)
+    Some(())
 }
 
 async fn handle_socket(
@@ -126,32 +138,38 @@ async fn handle_socket(
     mut socket: WebSocket,
     room_code: String,
 ) {
-    println!("Someone connected to room {}!", room_code);
+    println!("Someone connected to room {room_code}!");
+
+    let (sender, mut receiver) = match get_sender_and_receiver(&state, &room_code) {
+        Some((s, r)) => (s, r),
+        None => {
+            socket.send(Text("Room Not Found".into())).await.unwrap();
+            return;
+        }
+    };
 
     while let Some(msg) = socket.recv().await {
+        // looks like currently the issue is that the above line will hang until it receives a message
+        // so basically even if another user submits an option, it wont appear on their page until they send a message
+        // because the backend has not checked for this websocket yet whether another message was sent
+
         let msg = msg.unwrap();
         println!("Received a message: {:?}", msg);
 
+        while !receiver.is_empty() {
+            match receiver.recv().await {
+                Ok(option) => socket.send(Text(option.into())).await.unwrap(),
+                Err(_) => {}
+            };
+        }
+
         if let Text(text) = msg {
-            let received_option = text.to_string();
-            let (options, sender, receiver) =
-                match add_option_to_room_and_get_options(&state, received_option, &room_code) {
-                    Some((op, sen, rec)) => (op, sen, rec),
-                    None => {
-                        socket.send(Text("Room Not Found".into())).await.unwrap();
-                        break;
-                    }
-                };
-
-            for option in options {
-                socket.send(Text(option.clone().into())).await.unwrap();
-                sender.send(option);
+            let msg_str = text.to_string();
+            if msg_str != "Hello from the browser!" {
+                add_option_to_room(&state, msg_str, &room_code, &sender);
             }
-
-            //receiver.recv().await.unwrap() // when will it receive? do we need to keep checking all the messages?
         }
     }
 
-    // If the loop breaks, it means they closed the browser tab!
     println!("User disconnected!");
 }

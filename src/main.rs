@@ -7,13 +7,18 @@ use serde::Deserialize;
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 use tokio::net::TcpListener;
+use tokio::sync::broadcast::{Receiver, Sender};
 
 struct GameState {
+    tower: Sender<String>,
     options: Vec<String>,
 }
 
-fn build_gamestate() -> GameState {
-    GameState { options: vec![] }
+fn build_gamestate(channel_num: usize) -> GameState {
+    GameState {
+        tower: Sender::new(channel_num),
+        options: vec![],
+    }
 }
 
 #[derive(Deserialize)]
@@ -62,7 +67,7 @@ fn generate_room(rooms: &mut HashMap<String, GameState>) -> String {
             break;
         }
     }
-    rooms.insert(room_code.clone(), build_gamestate());
+    rooms.insert(room_code.clone(), build_gamestate(10)); // somehow turn the room code into a usize (like some basic hashing function)
     room_code
 }
 
@@ -105,11 +110,15 @@ fn add_option_to_room_and_get_options(
     state: &Arc<Mutex<HashMap<String, GameState>>>,
     option: String,
     room_code: &str,
-) -> Option<Vec<String>> {
+) -> Option<(Vec<String>, Sender<String>, Receiver<String>)> {
     let mut locked_rooms = state.lock().unwrap();
     let game_state = locked_rooms.get_mut(room_code)?;
+    // probaably should move these out of this function as we dont need to create these every time an option is added
+    let new_sender = game_state.tower.clone();
+    let new_receiver = game_state.tower.subscribe();
+
     game_state.options.push(option);
-    Some(game_state.options.clone())
+    Some((game_state.options.clone(), new_sender, new_receiver))
 }
 
 async fn handle_socket(
@@ -119,25 +128,27 @@ async fn handle_socket(
 ) {
     println!("Someone connected to room {}!", room_code);
 
-    // The Infinite Phone Call Loop
     while let Some(msg) = socket.recv().await {
         let msg = msg.unwrap();
         println!("Received a message: {:?}", msg);
 
         if let Text(text) = msg {
             let received_option = text.to_string();
-            let current_options =
+            let (options, sender, receiver) =
                 match add_option_to_room_and_get_options(&state, received_option, &room_code) {
-                    Some(options) => options,
+                    Some((op, sen, rec)) => (op, sen, rec),
                     None => {
                         socket.send(Text("Room Not Found".into())).await.unwrap();
                         break;
                     }
                 };
 
-            for option in current_options {
+            for option in options {
                 socket.send(Text(option.clone().into())).await.unwrap();
+                sender.send(option);
             }
+
+            //receiver.recv().await.unwrap() // when will it receive? do we need to keep checking all the messages?
         }
     }
 

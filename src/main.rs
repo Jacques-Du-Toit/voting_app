@@ -1,7 +1,12 @@
-use axum::extract::ws::{Message::Text, WebSocket, WebSocketUpgrade};
+use axum::extract::ws::{
+    Message::{self, Text},
+    WebSocket, WebSocketUpgrade,
+};
 use axum::extract::{Path, State};
 use axum::response::{Html, Redirect};
 use axum::{Form, Router, routing::get, routing::post};
+use futures::sink::SinkExt;
+use futures::stream::{SplitSink, SplitStream, StreamExt};
 use rand::RngExt;
 use serde::Deserialize;
 use std::collections::HashMap;
@@ -133,6 +138,38 @@ fn add_option_to_room(
     Some(())
 }
 
+async fn check_receiver(
+    receiver: &mut Receiver<String>,
+    socket: &mut SplitSink<WebSocket, Message>,
+) {
+    while !receiver.is_empty() {
+        match receiver.recv().await {
+            Ok(option) => socket.send(Text(option.into())).await.unwrap(),
+            Err(_) => {}
+        };
+    }
+}
+
+async fn check_message(
+    socket: &mut SplitStream<WebSocket>,
+    state: &Arc<Mutex<HashMap<String, GameState>>>,
+    room_code: &str,
+    sender: &Sender<String>,
+) {
+    while let Some(msg) = socket.next().await {
+        let msg = msg.unwrap();
+        println!("Received a message: {:?}", msg);
+
+        if let Text(text) = msg {
+            let msg_str = text.to_string();
+            if msg_str != "Hello from the browser!" {
+                add_option_to_room(&state, msg_str, room_code, sender);
+            }
+        }
+    }
+    println!("User disconnected!");
+}
+
 async fn handle_socket(
     state: Arc<Mutex<HashMap<String, GameState>>>,
     mut socket: WebSocket,
@@ -148,28 +185,12 @@ async fn handle_socket(
         }
     };
 
-    while let Some(msg) = socket.recv().await {
-        // looks like currently the issue is that the above line will hang until it receives a message
-        // so basically even if another user submits an option, it wont appear on their page until they send a message
-        // because the backend has not checked for this websocket yet whether another message was sent
+    let (mut socket_write, mut socket_read) = socket.split();
 
-        let msg = msg.unwrap();
-        println!("Received a message: {:?}", msg);
-
-        while !receiver.is_empty() {
-            match receiver.recv().await {
-                Ok(option) => socket.send(Text(option.into())).await.unwrap(),
-                Err(_) => {}
-            };
-        }
-
-        if let Text(text) = msg {
-            let msg_str = text.to_string();
-            if msg_str != "Hello from the browser!" {
-                add_option_to_room(&state, msg_str, &room_code, &sender);
-            }
+    loop {
+        tokio::select! {
+            _ = check_receiver(&mut receiver, &mut socket_write) => {}
+            _ = check_message(&mut socket_read, &state, &room_code, &sender) => {}
         }
     }
-
-    println!("User disconnected!");
 }

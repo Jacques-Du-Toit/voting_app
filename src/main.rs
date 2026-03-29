@@ -153,7 +153,7 @@ async fn check_message(
     state: &Arc<Mutex<HashMap<String, GameState>>>,
     room_code: &str,
     sender: &Sender<String>,
-) {
+) -> bool {
     if let Some(msg) = socket.next().await {
         let msg = msg.unwrap();
         println!("Received a message: {:?}", msg);
@@ -164,8 +164,11 @@ async fn check_message(
                 add_option_to_room(&state, msg_str, room_code, sender);
             }
         }
+        true
+    } else {
+        println!("User disconnected");
+        false
     }
-    println!("User disconnected!");
 }
 
 async fn handle_socket(
@@ -188,7 +191,9 @@ async fn handle_socket(
     loop {
         tokio::select! {
             _ = check_receiver(&mut receiver, &mut socket_write) => {}
-            _ = check_message(&mut socket_read, &state, &room_code, &sender) => {}
+            connected = check_message(&mut socket_read, &state, &room_code, &sender) => {
+                if !connected {break};
+            }
         }
     }
 }

@@ -142,12 +142,10 @@ async fn check_receiver(
     receiver: &mut Receiver<String>,
     socket: &mut SplitSink<WebSocket, Message>,
 ) {
-    while !receiver.is_empty() {
-        match receiver.recv().await {
-            Ok(option) => socket.send(Text(option.into())).await.unwrap(),
-            Err(_) => {}
-        };
-    }
+    match receiver.recv().await {
+        Ok(option) => socket.send(Text(option.into())).await.unwrap(),
+        Err(_) => {}
+    };
 }
 
 async fn check_message(
@@ -156,7 +154,7 @@ async fn check_message(
     room_code: &str,
     sender: &Sender<String>,
 ) {
-    while let Some(msg) = socket.next().await {
+    if let Some(msg) = socket.next().await {
         let msg = msg.unwrap();
         println!("Received a message: {:?}", msg);
 

@@ -46,7 +46,7 @@ async fn main() {
         .route("/ws/{room_code}", get(ws_handler))
         .with_state(shared_state);
 
-    let listener = TcpListener::bind("127.0.0.1:3000").await.unwrap();
+    let listener = TcpListener::bind("0.0.0.0:3000").await.unwrap();
     println!("Server is running! Go to http://127.0.0.1:3000 in your browser.");
 
     axum::serve(listener, app).await.unwrap();

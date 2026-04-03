@@ -14,7 +14,7 @@
         </form>
         <ul id="options_list"></ul>
         <script>
-            const socket = new WebSocket("ws://127.0.0.1:3000/ws/[ROOM_CODE]");
+            const socket = new WebSocket("ws://" + window.location.host + "/ws/[ROOM_CODE]");
 
             socket.onopen = function() {
                 console.log("Connected to the server!");

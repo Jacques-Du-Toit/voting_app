@@ -5,11 +5,12 @@ use axum::extract::ws::{
 use axum::extract::{Path, State};
 use axum::response::{Html, Redirect};
 use axum::{Form, Router, routing::get, routing::post};
-use futures::sink::SinkExt;
+use futures::sink::{Sink, SinkExt};
 use futures::stream::{SplitSink, SplitStream, StreamExt};
 use rand::RngExt;
 use serde::Deserialize;
 use std::collections::HashMap;
+use std::fmt::Debug;
 use std::sync::{Arc, Mutex};
 use tokio::net::TcpListener;
 use tokio::sync::broadcast::{Receiver, Sender};
@@ -107,6 +108,18 @@ async fn ws_handler(
     ws.on_upgrade(move |socket| handle_socket(state, socket, room_code))
 }
 
+async fn send_to_socket<S, E>(socket: &mut S, text: &str)
+where
+    // S must be something that can "Sink" (send) WebSockets Messages
+    // Unpin is a Tokio requirement to safely pass the socket by mutable reference
+    S: Sink<Message, Error = E> + Unpin,
+    E: Debug,
+{
+    if let Err(e) = socket.send(Text(text.into())).await {
+        println!("Error sending {} to WebSocket due to {:?}", text, e);
+    }
+}
+
 async fn room_not_found() -> Html<&'static str> {
     Html(include_str!("../templates/room_not_found.html"))
 }
@@ -145,10 +158,14 @@ async fn send_all_current_options_to_websocket(
 ) {
     let game_state_options = {
         let locked_rooms = state.lock().unwrap();
-        locked_rooms.get(room_code).unwrap().options.clone()
+        locked_rooms
+            .get(room_code)
+            .expect("Room doesn't exist although we just checked in prev function?")
+            .options
+            .clone()
     };
     for option in game_state_options {
-        socket.send(Text(option.into())).await.unwrap();
+        send_to_socket(socket, &option).await;
     }
 }
 
@@ -157,8 +174,8 @@ async fn check_receiver(
     socket: &mut SplitSink<WebSocket, Message>,
 ) {
     match receiver.recv().await {
-        Ok(option) => socket.send(Text(option.into())).await.unwrap(),
-        Err(_) => {}
+        Ok(option) => send_to_socket(socket, &option).await,
+        Err(e) => println!("Error receiving option {:?}", e),
     };
 }
 
@@ -169,7 +186,13 @@ async fn check_message(
     sender: &Sender<String>,
 ) -> bool {
     if let Some(msg) = socket.next().await {
-        let msg = msg.unwrap();
+        let msg = match msg {
+            Ok(some_msg) => some_msg,
+            Err(e) => {
+                println!("Error reading message due to {:?}", e);
+                return false;
+            }
+        };
         println!("Received a message: {:?}", msg);
 
         if let Text(text) = msg {
@@ -196,11 +219,11 @@ async fn handle_socket(
     let (sender, mut receiver) = match get_sender_and_receiver(&state, &room_code) {
         Some((s, r)) => (s, r),
         None => {
-            socket.send(Text("Room Not Found".into())).await.unwrap();
+            send_to_socket(&mut socket, "Room Not Found").await;
             return;
         }
     };
-    // If someone joins late want to send all the current options to their screen
+    // If someone joins late want to send all the current options to their screen, break out if room not found
     send_all_current_options_to_websocket(&state, &mut socket, &room_code).await;
 
     // Want to be able to read and write from socket at the same time without multiple references error

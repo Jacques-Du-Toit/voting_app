@@ -12,6 +12,7 @@
             <input type="text" id="add_option_box" maxlength="20">
             <button type="submit">Add Option</button>
         </form>
+        <ul id="options_list"></ul>
         <script>
             const socket = new WebSocket("ws://127.0.0.1:3000/ws/[ROOM_CODE]");
 
@@ -22,6 +23,7 @@
 
             const form = document.getElementById("option_form");
             const inputBox = document.getElementById("add_option_box");
+            const optionList = document.getElementById("options_list");
 
             form.addEventListener("submit", function(event) {
                 event.preventDefault(); 
@@ -35,6 +37,9 @@
                     window.location.href = "/room_not_found";
                 }
                 console.log("The server says: ", event.data);
+                const newOption = document.createElement("li");
+                newOption.textContent = event.data;
+                optionList.append(newOption);
             };
         </script>
     </main>

@@ -138,6 +138,20 @@ fn add_option_to_room(
     Some(())
 }
 
+async fn send_all_current_options_to_websocket(
+    state: &Arc<Mutex<HashMap<String, GameState>>>,
+    socket: &mut WebSocket,
+    room_code: &str,
+) {
+    let game_state_options = {
+        let locked_rooms = state.lock().unwrap();
+        locked_rooms.get(room_code).unwrap().options.clone()
+    };
+    for option in game_state_options {
+        socket.send(Text(option.into())).await.unwrap();
+    }
+}
+
 async fn check_receiver(
     receiver: &mut Receiver<String>,
     socket: &mut SplitSink<WebSocket, Message>,
@@ -178,6 +192,7 @@ async fn handle_socket(
 ) {
     println!("Someone connected to room {room_code}!");
 
+    // Get the sender and receiver of the current room, if it doesn't exist send them to a page that shows this
     let (sender, mut receiver) = match get_sender_and_receiver(&state, &room_code) {
         Some((s, r)) => (s, r),
         None => {
@@ -185,9 +200,13 @@ async fn handle_socket(
             return;
         }
     };
+    // If someone joins late want to send all the current options to their screen
+    send_all_current_options_to_websocket(&state, &mut socket, &room_code).await;
 
+    // Want to be able to read and write from socket at the same time without multiple references error
     let (mut socket_write, mut socket_read) = socket.split();
 
+    // Check whether a new option has been added or whether they have sent a new option to the backend simultaneously
     loop {
         tokio::select! {
             _ = check_receiver(&mut receiver, &mut socket_write) => {}

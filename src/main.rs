@@ -41,12 +41,14 @@ struct JoinRequest {
 
 struct GameState {
     tower: Sender<String>,
+    players: Vec<String>,
     options: Vec<String>, // should store as hashset if no duplicates allowed? but maybe order matters
 }
 
 fn build_gamestate() -> GameState {
     GameState {
         tower: Sender::new(20),
+        players: vec![],
         options: vec![],
     }
 }
@@ -198,6 +200,45 @@ fn remove_option_from_room(
     Some(())
 }
 
+fn add_new_player_and_send_from_tower(
+    state: &Arc<Mutex<HashMap<String, GameState>>>,
+    room_code: &str,
+    room_tower: &Sender<String>,
+) -> String {
+    let mut locked_rooms = state.lock().unwrap();
+    let players = &mut locked_rooms
+        .get_mut(room_code)
+        .expect("Room doesn't exist although we just checked in prev function?")
+        .players;
+    let player_id = players.len().to_string();
+    players.push(player_id.clone());
+    send_from_tower(
+        "NumPlayers".to_string(),
+        players.len().to_string(),
+        room_tower,
+    );
+    player_id
+}
+
+fn remove_player_and_send_from_tower(
+    player_id: &str,
+    state: &Arc<Mutex<HashMap<String, GameState>>>,
+    room_code: &str,
+    room_tower: &Sender<String>,
+) {
+    let mut locked_rooms = state.lock().unwrap();
+    let players = &mut locked_rooms
+        .get_mut(room_code)
+        .expect("Room doesn't exist although we just checked in prev function?")
+        .players;
+    players.retain(|existing_option| existing_option != &player_id);
+    send_from_tower(
+        "NumPlayers".to_string(),
+        players.len().to_string(),
+        room_tower,
+    );
+}
+
 async fn send_all_current_options_to_websocket(
     state: &Arc<Mutex<HashMap<String, GameState>>>,
     socket: &mut WebSocket,
@@ -292,6 +333,8 @@ async fn handle_socket(
             return;
         }
     };
+    let player_id = add_new_player_and_send_from_tower(&state, &room_code, &sender);
+
     // If someone joins late want to send all the current options to their screen, break out if room not found
     send_all_current_options_to_websocket(&state, &mut socket, &room_code).await;
 
@@ -307,4 +350,5 @@ async fn handle_socket(
             }
         }
     }
+    remove_player_and_send_from_tower(&player_id, &state, &room_code, &sender);
 }

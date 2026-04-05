@@ -8,6 +8,7 @@
 </head>
 <body>
     <main class="container">
+        <h3 id="player_count_display">Ready/Players: 0/1</h3>
         <form id="option_form">
             <input type="text" id="add_option_box" maxlength="50">
             <button type="submit">Add Option</button>
@@ -29,6 +30,7 @@
                 sendMessageToServer("Debug", "Hello from the browser!")
             };
 
+            const playerCount = document.getElementById("player_count_display");
             const form = document.getElementById("option_form");
             const inputBox = document.getElementById("add_option_box");
             const optionList = document.getElementById("options_list");
@@ -76,8 +78,11 @@
                 }
 
                 const serverMessage = JSON.parse(event.data);
-
-                if (serverMessage.message_type == "NewOption") {
+                
+                if (serverMessage.message_type == "NumPlayers") {
+                    playerCount.textContent = `Ready/Players: 0/${serverMessage.content}`;
+                }
+                else if (serverMessage.message_type == "NewOption") {
                     addNewOption(serverMessage.content, optionList);
                 }
                 else if (serverMessage.message_type == "DeleteOption") {

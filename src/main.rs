@@ -35,7 +35,7 @@ struct JoinRequest {
 
 struct GameState {
     tower: Sender<String>,
-    options: Vec<String>,
+    options: Vec<String>, // should store as hashset if no duplicates allowed? but maybe order matters
 }
 
 fn build_gamestate() -> GameState {
@@ -164,6 +164,23 @@ fn add_option_to_room(
     Some(())
 }
 
+fn remove_option_from_room(
+    state: &Arc<Mutex<HashMap<String, GameState>>>,
+    option: String,
+    room_code: &str,
+    room_tower: &Sender<String>,
+) -> Option<()> {
+    let mut locked_rooms = state.lock().unwrap();
+    let game_state = locked_rooms.get_mut(room_code)?;
+
+    game_state
+        .options
+        .retain(|existing_option| existing_option != &option);
+    // need to tell all websockets to remove this option from the front end
+    //let _ = room_tower.send(option); // should handle this case eventually (where it errors)
+    Some(())
+}
+
 async fn send_all_current_options_to_websocket(
     state: &Arc<Mutex<HashMap<String, GameState>>>,
     socket: &mut WebSocket,
@@ -203,7 +220,10 @@ fn evaluate_parsed_msg(
         MessageType::NewOption => {
             add_option_to_room(&state, parsed_msg.contents, room_code, sender);
         }
-        _ => {} // TODO: finish creating other message type evals
+        MessageType::DeleteOption => {
+            remove_option_from_room(&state, parsed_msg.contents, room_code, sender);
+        }
+        MessageType::Debug => println!("{}", parsed_msg.contents),
     }
 }
 

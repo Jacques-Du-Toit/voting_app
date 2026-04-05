@@ -58,6 +58,7 @@ struct GameState {
     tower: Sender<String>,
     players: Vec<Player>,
     options: Vec<String>, // should store as hashset if no duplicates allowed? but maybe order matters
+    latest_id: u32,
 }
 
 fn build_gamestate() -> GameState {
@@ -65,6 +66,7 @@ fn build_gamestate() -> GameState {
         tower: Sender::new(20),
         players: vec![],
         options: vec![],
+        latest_id: 0,
     }
 }
 
@@ -231,11 +233,12 @@ fn add_new_player_and_send_from_tower(
     room_tower: &Sender<String>,
 ) -> String {
     let mut locked_rooms = state.lock().unwrap();
-    let players = &mut locked_rooms
+    let game_state = &mut locked_rooms
         .get_mut(room_code)
-        .expect("Room doesn't exist although we just checked in prev function?")
-        .players;
-    let player_id = players.len().to_string();
+        .expect("Room doesn't exist although we just checked in prev function?");
+    let players = &mut game_state.players;
+    game_state.latest_id += 1;
+    let player_id = game_state.latest_id.to_string();
     players.push(build_player(player_id.clone()));
     send_ready_player_count(players, room_tower);
     player_id

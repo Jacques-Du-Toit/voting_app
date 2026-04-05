@@ -15,6 +15,19 @@ use std::sync::{Arc, Mutex};
 use tokio::net::TcpListener;
 use tokio::sync::broadcast::{Receiver, Sender};
 
+#[derive(Deserialize, PartialEq, Debug)]
+enum MessageType {
+    NewOption,
+    DeleteOption,
+    Debug,
+}
+
+#[derive(Deserialize)]
+struct ClientMessage {
+    message_type: MessageType,
+    contents: String,
+}
+
 #[derive(Deserialize)]
 struct JoinRequest {
     room_code: String,
@@ -179,6 +192,21 @@ async fn check_receiver(
     };
 }
 
+fn evaluate_parsed_msg(
+    parsed_msg: ClientMessage,
+    state: &Arc<Mutex<HashMap<String, GameState>>>,
+    room_code: &str,
+    sender: &Sender<String>,
+) {
+    // may need to make function async at some point
+    match parsed_msg.message_type {
+        MessageType::NewOption => {
+            add_option_to_room(&state, parsed_msg.contents, room_code, sender);
+        }
+        _ => {} // TODO: finish creating other message type evals
+    }
+}
+
 async fn check_message(
     socket: &mut SplitStream<WebSocket>,
     state: &Arc<Mutex<HashMap<String, GameState>>>,
@@ -197,8 +225,11 @@ async fn check_message(
 
         if let Text(text) = msg {
             let msg_str = text.to_string();
-            if msg_str != "Hello from the browser!" {
-                add_option_to_room(&state, msg_str, room_code, sender);
+
+            if let Ok(parsed_msg) = serde_json::from_str::<ClientMessage>(&msg_str) {
+                evaluate_parsed_msg(parsed_msg, &state, room_code, sender);
+            } else {
+                println!("Failed to parse JSON: {}", msg_str);
             }
         }
         true

@@ -196,8 +196,10 @@ fn add_option_to_room(
 ) -> Option<()> {
     let mut locked_rooms = state.lock().unwrap();
     let game_state = locked_rooms.get_mut(room_code)?;
-    game_state.options.push(option.clone());
-    send_from_tower("NewOption".to_string(), option, room_tower);
+    if !game_state.options.contains(&option) && (option != "") {
+        game_state.options.push(option.clone());
+        send_from_tower("NewOption".to_string(), option, room_tower);
+    }
     Some(())
 }
 

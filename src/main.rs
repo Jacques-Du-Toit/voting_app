@@ -214,6 +214,16 @@ fn remove_option_from_room(
     Some(())
 }
 
+fn send_ready_player_count(players: &mut Vec<Player>, room_tower: &Sender<String>) {
+    let ready_players = players.iter().filter(|player| player.ready == true).count();
+    let num_players = players.len();
+    send_from_tower(
+        "ReadyPlayers".to_string(),
+        format!("{ready_players}/{num_players}"),
+        room_tower,
+    );
+}
+
 fn add_new_player_and_send_from_tower(
     state: &Arc<Mutex<HashMap<String, GameState>>>,
     room_code: &str,
@@ -226,11 +236,7 @@ fn add_new_player_and_send_from_tower(
         .players;
     let player_id = players.len().to_string();
     players.push(build_player(player_id.clone()));
-    send_from_tower(
-        "NumPlayers".to_string(),
-        players.len().to_string(),
-        room_tower,
-    );
+    send_ready_player_count(players, room_tower);
     player_id
 }
 
@@ -246,11 +252,7 @@ fn remove_player_and_send_from_tower(
         .expect("Room doesn't exist although we just checked in prev function?")
         .players;
     players.retain(|existing_option| existing_option.name != player_id);
-    send_from_tower(
-        "NumPlayers".to_string(),
-        players.len().to_string(),
-        room_tower,
-    );
+    send_ready_player_count(players, room_tower);
 }
 
 async fn send_all_current_options_to_websocket(

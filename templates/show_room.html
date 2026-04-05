@@ -79,8 +79,8 @@
 
                 const serverMessage = JSON.parse(event.data);
                 
-                if (serverMessage.message_type == "NumPlayers") {
-                    playerCount.textContent = `Ready/Players: 0/${serverMessage.content}`;
+                if (serverMessage.message_type == "ReadyPlayers") {
+                    playerCount.textContent = `Ready/Players: ${serverMessage.content}`;
                 }
                 else if (serverMessage.message_type == "NewOption") {
                     addNewOption(serverMessage.content, optionList);

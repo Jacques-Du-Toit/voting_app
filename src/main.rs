@@ -39,9 +39,23 @@ struct JoinRequest {
     room_code: String,
 }
 
+struct Player {
+    name: String,
+    ready: bool,
+    option_scores: HashMap<String, f32>,
+}
+
+fn build_player(name: String) -> Player {
+    Player {
+        name: name,
+        ready: false,
+        option_scores: HashMap::new(),
+    }
+}
+
 struct GameState {
     tower: Sender<String>,
-    players: Vec<String>,
+    players: Vec<Player>,
     options: Vec<String>, // should store as hashset if no duplicates allowed? but maybe order matters
 }
 
@@ -211,7 +225,7 @@ fn add_new_player_and_send_from_tower(
         .expect("Room doesn't exist although we just checked in prev function?")
         .players;
     let player_id = players.len().to_string();
-    players.push(player_id.clone());
+    players.push(build_player(player_id.clone()));
     send_from_tower(
         "NumPlayers".to_string(),
         players.len().to_string(),
@@ -221,7 +235,7 @@ fn add_new_player_and_send_from_tower(
 }
 
 fn remove_player_and_send_from_tower(
-    player_id: &str,
+    player_id: String,
     state: &Arc<Mutex<HashMap<String, GameState>>>,
     room_code: &str,
     room_tower: &Sender<String>,
@@ -231,7 +245,7 @@ fn remove_player_and_send_from_tower(
         .get_mut(room_code)
         .expect("Room doesn't exist although we just checked in prev function?")
         .players;
-    players.retain(|existing_option| existing_option != &player_id);
+    players.retain(|existing_option| existing_option.name != player_id);
     send_from_tower(
         "NumPlayers".to_string(),
         players.len().to_string(),
@@ -350,5 +364,5 @@ async fn handle_socket(
             }
         }
     }
-    remove_player_and_send_from_tower(&player_id, &state, &room_code, &sender);
+    remove_player_and_send_from_tower(player_id, &state, &room_code, &sender);
 }

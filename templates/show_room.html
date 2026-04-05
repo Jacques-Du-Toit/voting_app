@@ -40,19 +40,13 @@
                 inputBox.value = ""; 
             });
 
-            socket.onmessage = function(event) {
-                if (event.data == "Room Not Found") {
-                    window.location.href = "/room_not_found";
-                    return;
-                }
-                
-                console.log("The server says: ", event.data);
-                
+            addNewOption = function(option_text, optionList) {
                 const newOptionContainer = document.createElement("li");
+                newOptionContainer.setAttribute("data-option", option_text);
                 newOptionContainer.style.marginLeft = "35px";
 
                 const optionText = document.createElement("span");
-                optionText.textContent = event.data;
+                optionText.textContent = option_text;
                 
                 const deleteBtn = document.createElement("button");
                 deleteBtn.textContent = "X";
@@ -64,6 +58,34 @@
                 newOptionContainer.appendChild(deleteBtn);
                 
                 optionList.appendChild(newOptionContainer);
+            }
+
+            removeOption = function(option_text, optionList) {
+                document.querySelector(`[data-option="${option_text}"]`).remove();
+            }
+
+            socket.onmessage = function(event) {
+                console.log("The server says: ", event.data);
+                
+                if (event.data == "Room Not Found") {
+                    window.location.href = "/room_not_found";
+                    return;
+                }
+                if (event.data == "") {
+                    return;
+                }
+
+                const serverMessage = JSON.parse(event.data);
+
+                if (serverMessage.message_type == "NewOption") {
+                    addNewOption(serverMessage.content, optionList);
+                }
+                else if (serverMessage.message_type == "DeleteOption") {
+                    removeOption(serverMessage.content, optionList);
+                }
+                else {
+                    console.log("Unknown message_type:", serverMessage.message_type);
+                }
             };
         </script>
     </main>

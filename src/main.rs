@@ -8,7 +8,7 @@ use axum::{Form, Router, routing::get, routing::post};
 use futures::sink::{Sink, SinkExt};
 use futures::stream::{SplitSink, SplitStream, StreamExt};
 use rand::RngExt;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fmt::Debug;
 use std::sync::{Arc, Mutex};
@@ -26,6 +26,12 @@ enum MessageType {
 struct ClientMessage {
     message_type: MessageType,
     contents: String,
+}
+
+#[derive(Serialize)]
+struct ServerMessage {
+    message_type: String,
+    content: String,
 }
 
 #[derive(Deserialize)]
@@ -150,6 +156,19 @@ fn get_sender_and_receiver(
     Some((new_sender, new_receiver))
 }
 
+fn to_server_message_json(message_type: String, content: String) -> String {
+    let outgoing_msg = ServerMessage {
+        message_type: message_type,
+        content: content,
+    };
+    serde_json::to_string(&outgoing_msg).unwrap()
+}
+
+fn send_from_tower(message_type: String, content: String, room_tower: &Sender<String>) {
+    let json_string = to_server_message_json(message_type, content);
+    let _ = room_tower.send(json_string); // should handle this case eventually (where it errors)
+}
+
 fn add_option_to_room(
     state: &Arc<Mutex<HashMap<String, GameState>>>,
     option: String,
@@ -158,9 +177,8 @@ fn add_option_to_room(
 ) -> Option<()> {
     let mut locked_rooms = state.lock().unwrap();
     let game_state = locked_rooms.get_mut(room_code)?;
-
     game_state.options.push(option.clone());
-    let _ = room_tower.send(option); // should handle this case eventually (where it errors)
+    send_from_tower("NewOption".to_string(), option, room_tower);
     Some(())
 }
 
@@ -176,8 +194,7 @@ fn remove_option_from_room(
     game_state
         .options
         .retain(|existing_option| existing_option != &option);
-    // need to tell all websockets to remove this option from the front end
-    //let _ = room_tower.send(option); // should handle this case eventually (where it errors)
+    send_from_tower("DeleteOption".to_string(), option, room_tower);
     Some(())
 }
 
@@ -195,7 +212,8 @@ async fn send_all_current_options_to_websocket(
             .clone()
     };
     for option in game_state_options {
-        send_to_socket(socket, &option).await;
+        let json_string = to_server_message_json("NewOption".to_string(), option.clone());
+        send_to_socket(socket, &json_string).await
     }
 }
 

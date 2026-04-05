@@ -15,7 +15,7 @@ use std::sync::{Arc, Mutex};
 use tokio::net::TcpListener;
 use tokio::sync::broadcast::{Receiver, Sender};
 
-#[derive(Deserialize, PartialEq, Debug)]
+#[derive(Deserialize, PartialEq, Debug, serde::Serialize)]
 enum MessageType {
     NewOption,
     DeleteOption,
@@ -31,7 +31,7 @@ struct ClientMessage {
 
 #[derive(Serialize)]
 struct ServerMessage {
-    message_type: String,
+    message_type: MessageType,
     content: String,
 }
 
@@ -175,7 +175,7 @@ fn get_sender_and_receiver(
     Some((new_sender, new_receiver))
 }
 
-fn to_server_message_json(message_type: String, content: String) -> String {
+fn to_server_message_json(message_type: MessageType, content: String) -> String {
     let outgoing_msg = ServerMessage {
         message_type: message_type,
         content: content,
@@ -183,7 +183,7 @@ fn to_server_message_json(message_type: String, content: String) -> String {
     serde_json::to_string(&outgoing_msg).unwrap()
 }
 
-fn send_from_tower(message_type: String, content: String, room_tower: &Sender<String>) {
+fn send_from_tower(message_type: MessageType, content: String, room_tower: &Sender<String>) {
     let json_string = to_server_message_json(message_type, content);
     let _ = room_tower.send(json_string); // should handle this case eventually (where it errors)
 }
@@ -198,7 +198,7 @@ fn add_option_to_room(
     let game_state = locked_rooms.get_mut(room_code)?;
     if !game_state.options.contains(&option) && (option != "") {
         game_state.options.push(option.clone());
-        send_from_tower("NewOption".to_string(), option, room_tower);
+        send_from_tower(MessageType::NewOption, option, room_tower);
     }
     Some(())
 }
@@ -215,7 +215,7 @@ fn remove_option_from_room(
     game_state
         .options
         .retain(|existing_option| existing_option != &option);
-    send_from_tower("DeleteOption".to_string(), option, room_tower);
+    send_from_tower(MessageType::DeleteOption, option, room_tower);
     Some(())
 }
 
@@ -223,7 +223,7 @@ fn send_ready_player_count(players: &mut Vec<Player>, room_tower: &Sender<String
     let ready_players = players.iter().filter(|player| player.ready == true).count();
     let num_players = players.len();
     send_from_tower(
-        "ReadyPlayers".to_string(),
+        MessageType::ToggleReady,
         format!("{ready_players}/{num_players}"),
         room_tower,
     );
@@ -275,7 +275,7 @@ async fn send_all_current_options_to_websocket(
             .clone()
     };
     for option in game_state_options {
-        let json_string = to_server_message_json("NewOption".to_string(), option.clone());
+        let json_string = to_server_message_json(MessageType::NewOption, option.clone());
         send_to_socket(socket, &json_string).await
     }
 }

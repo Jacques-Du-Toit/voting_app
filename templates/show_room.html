@@ -27,7 +27,7 @@
         <script>
             const socket = new WebSocket("ws://" + window.location.host + "/ws/[ROOM_CODE]");
 
-            sendMessageToServer = function(messageType, messageContents) {
+            const sendMessageToServer = function(messageType, messageContents) {
                 const payload = {
                     message_type: messageType,
                     contents: messageContents
@@ -52,7 +52,7 @@
 
             form.addEventListener("submit", function(event) {
                 event.preventDefault(); 
-                const optionText = inputBox.value;
+                const optionText = inputBox.value.trim();
                 if (optionText == "") {
                     return;
                 }
@@ -60,7 +60,7 @@
                 inputBox.value = ""; 
             });
 
-            addNewOption = function(option_text, optionList) {
+            const addNewOption = function(option_text, optionList) {
                 const newOptionContainer = document.createElement("li");
                 newOptionContainer.setAttribute("data-option", option_text);
                 newOptionContainer.style.marginLeft = "35px";
@@ -80,7 +80,7 @@
                 optionList.appendChild(newOptionContainer);
             }
 
-            removeOption = function(option_text, optionList) {
+            const removeOption = function(option_text, optionList) {
                 document.querySelector(`[data-option="${option_text}"]`).remove();
             }
 
@@ -97,7 +97,7 @@
 
                 const serverMessage = JSON.parse(event.data);
                 
-                if (serverMessage.message_type == "ReadyPlayers") {
+                if (serverMessage.message_type == "ToggleReady") {
                     playerCount.textContent = `Ready/Players: ${serverMessage.content}`;
                 }
                 else if (serverMessage.message_type == "NewOption") {

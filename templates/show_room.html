@@ -2,13 +2,23 @@
 <html lang="en">
 <head>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css">
+    <style>
+        #ready_bar {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+    </style>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Voting App</title>
 </head>
 <body>
     <main class="container">
-        <h3 id="player_count_display">Ready/Players: 0/1</h3>
+        <div id="ready_bar">
+            <h3 id="player_count_display">Ready/Players: 0/1</h3>
+            <button type="button" id="ready_btn">Ready</button>
+        </div>
         <form id="option_form">
             <input type="text" id="add_option_box" maxlength="50">
             <button type="submit">Add Option</button>
@@ -31,9 +41,14 @@
             };
 
             const playerCount = document.getElementById("player_count_display");
+            const readyBtn = document.getElementById("ready_btn");
             const form = document.getElementById("option_form");
             const inputBox = document.getElementById("add_option_box");
             const optionList = document.getElementById("options_list");
+
+            readyBtn.onclick = function() {
+                sendMessageToServer("ToggleReady", "")
+            }
 
             form.addEventListener("submit", function(event) {
                 event.preventDefault(); 

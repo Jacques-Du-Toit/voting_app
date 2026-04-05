@@ -19,7 +19,7 @@ use tokio::sync::broadcast::{Receiver, Sender};
 enum MessageType {
     NewOption,
     DeleteOption,
-    Ready,
+    ToggleReady,
     Debug,
 }
 
@@ -319,7 +319,7 @@ fn evaluate_parsed_msg(
         MessageType::DeleteOption => {
             remove_option_from_room(&state, parsed_msg.contents, room_code, sender);
         }
-        MessageType::Ready => switch_player_ready(player_id, &state, room_code, sender),
+        MessageType::ToggleReady => switch_player_ready(player_id, &state, room_code, sender),
         MessageType::Debug => println!("{}", parsed_msg.contents),
     }
 }

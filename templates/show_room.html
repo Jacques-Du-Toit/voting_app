@@ -52,7 +52,10 @@
 
             form.addEventListener("submit", function(event) {
                 event.preventDefault(); 
-                const optionText = inputBox.value;    
+                const optionText = inputBox.value;
+                if (optionText == "") {
+                    return;
+                }
                 sendMessageToServer("NewOption", optionText);    
                 inputBox.value = ""; 
             });

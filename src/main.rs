@@ -19,6 +19,7 @@ use tokio::sync::broadcast::{Receiver, Sender};
 enum MessageType {
     NewOption,
     DeleteOption,
+    Ready,
     Debug,
 }
 
@@ -274,6 +275,25 @@ async fn send_all_current_options_to_websocket(
     }
 }
 
+fn switch_player_ready(
+    player_id: &str,
+    state: &Arc<Mutex<HashMap<String, GameState>>>,
+    room_code: &str,
+    sender: &Sender<String>,
+) {
+    let mut locked_rooms = state.lock().unwrap();
+    let players = &mut locked_rooms
+        .get_mut(room_code)
+        .expect("Room doesn't exist although we just checked in prev function?")
+        .players;
+
+    let target_player = players.iter_mut().find(|p| p.name == player_id);
+    if let Some(player) = target_player {
+        player.ready = !player.ready;
+    }
+    send_ready_player_count(players, &sender)
+}
+
 async fn check_receiver(
     receiver: &mut Receiver<String>,
     socket: &mut SplitSink<WebSocket, Message>,
@@ -289,6 +309,7 @@ fn evaluate_parsed_msg(
     state: &Arc<Mutex<HashMap<String, GameState>>>,
     room_code: &str,
     sender: &Sender<String>,
+    player_id: &str,
 ) {
     // may need to make function async at some point
     match parsed_msg.message_type {
@@ -298,6 +319,7 @@ fn evaluate_parsed_msg(
         MessageType::DeleteOption => {
             remove_option_from_room(&state, parsed_msg.contents, room_code, sender);
         }
+        MessageType::Ready => switch_player_ready(player_id, &state, room_code, sender),
         MessageType::Debug => println!("{}", parsed_msg.contents),
     }
 }
@@ -307,6 +329,7 @@ async fn check_message(
     state: &Arc<Mutex<HashMap<String, GameState>>>,
     room_code: &str,
     sender: &Sender<String>,
+    player_id: &str,
 ) -> bool {
     if let Some(msg) = socket.next().await {
         let msg = match msg {
@@ -322,7 +345,7 @@ async fn check_message(
             let msg_str = text.to_string();
 
             if let Ok(parsed_msg) = serde_json::from_str::<ClientMessage>(&msg_str) {
-                evaluate_parsed_msg(parsed_msg, &state, room_code, sender);
+                evaluate_parsed_msg(parsed_msg, &state, room_code, sender, player_id);
             } else {
                 println!("Failed to parse JSON: {}", msg_str);
             }
@@ -361,7 +384,7 @@ async fn handle_socket(
     loop {
         tokio::select! {
             _ = check_receiver(&mut receiver, &mut socket_write) => {}
-            connected = check_message(&mut socket_read, &state, &room_code, &sender) => {
+            connected = check_message(&mut socket_read, &state, &room_code, &sender, &player_id) => {
                 if !connected {break};
             }
         }

@@ -1,3 +1,10 @@
+mod state;
+
+use crate::state::{
+    ClientMessage, GameState, JoinRequest, MessageType, Player, ServerMessage, build_gamestate,
+    build_player,
+};
+
 use axum::extract::ws::{
     Message::{self, Text},
     WebSocket, WebSocketUpgrade,
@@ -8,67 +15,11 @@ use axum::{Form, Router, routing::get, routing::post};
 use futures::sink::{Sink, SinkExt};
 use futures::stream::{SplitSink, SplitStream, StreamExt};
 use rand::RngExt;
-use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fmt::Debug;
 use std::sync::{Arc, Mutex};
 use tokio::net::TcpListener;
 use tokio::sync::broadcast::{Receiver, Sender};
-
-#[derive(Deserialize, PartialEq, Debug, serde::Serialize)]
-enum MessageType {
-    NewOption,
-    DeleteOption,
-    ToggleReady,
-    Debug,
-}
-
-#[derive(Deserialize)]
-struct ClientMessage {
-    message_type: MessageType,
-    contents: String,
-}
-
-#[derive(Serialize)]
-struct ServerMessage {
-    message_type: MessageType,
-    content: String,
-}
-
-#[derive(Deserialize)]
-struct JoinRequest {
-    room_code: String,
-}
-
-struct Player {
-    name: String,
-    ready: bool,
-    option_scores: HashMap<String, f32>,
-}
-
-fn build_player(name: String) -> Player {
-    Player {
-        name: name,
-        ready: false,
-        option_scores: HashMap::new(),
-    }
-}
-
-struct GameState {
-    tower: Sender<String>,
-    players: Vec<Player>,
-    options: Vec<String>, // should store as hashset if no duplicates allowed? but maybe order matters
-    latest_id: u32,
-}
-
-fn build_gamestate() -> GameState {
-    GameState {
-        tower: Sender::new(20),
-        players: vec![],
-        options: vec![],
-        latest_id: 0,
-    }
-}
 
 #[tokio::main]
 async fn main() {

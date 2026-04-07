@@ -11,6 +11,7 @@ use rand::RngExt;
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 use tokio::net::TcpListener;
+use tower_http::services::ServeDir;
 
 #[tokio::main]
 async fn main() {
@@ -23,7 +24,8 @@ async fn main() {
         .route("/join_room", post(join_room))
         .route("/room/{room_code}", get(show_room))
         .route("/room_not_found", get(room_not_found))
-        .route("/ws/{room_code}", get(ws_handler)) // Hooking up our imported handler!
+        .route("/ws/{room_code}", get(ws_handler))
+        .fallback_service(ServeDir::new("public"))
         .with_state(shared_state);
 
     let listener = TcpListener::bind("0.0.0.0:3000").await.unwrap();

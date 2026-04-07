@@ -10,9 +10,15 @@ const sendMessageToServer = function(messageType, messageContents) {
     socket.send(JSON.stringify(payload))
 }
 
+const savedToken = localStorage.getItem("player_token");
 socket.onopen = function() {
     console.log("Connected to the server!");
-    sendMessageToServer("Debug", "Hello from the browser!")
+    if (savedToken) {
+        sendMessageToServer("PlayerToken", `${savedToken}`)
+    }
+    else {
+        sendMessageToServer("NewPlayer", "")
+    }
 };
 
 const playerCount = document.getElementById("player_count_display");
@@ -55,7 +61,7 @@ const addNewOption = function(option_text, optionList) {
     optionList.appendChild(newOptionContainer);
 }
 
-const removeOption = function(option_text, optionList) {
+const removeOption = function(option_text) {
     document.querySelector(`[data-option="${option_text}"]`).remove();
 }
 
@@ -71,15 +77,17 @@ socket.onmessage = function(event) {
     }
 
     const serverMessage = JSON.parse(event.data);
-    
-    if (serverMessage.message_type == "ToggleReady") {
-        playerCount.textContent = `Ready/Players: ${serverMessage.content}`;
+    if (serverMessage.message_type == "PlayerToken") {
+        localStorage.setItem("player_token", serverMessage.content);
+    }
+    else if (serverMessage.message_type == "ToggleReady") {
+        playerCount.textContent = `Ready: ${serverMessage.content}`;
     }
     else if (serverMessage.message_type == "NewOption") {
         addNewOption(serverMessage.content, optionList);
     }
     else if (serverMessage.message_type == "DeleteOption") {
-        removeOption(serverMessage.content, optionList);
+        removeOption(serverMessage.content);
     }
     else {
         console.log("Unknown message_type:", serverMessage.message_type);

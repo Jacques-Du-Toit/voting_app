@@ -1,11 +1,16 @@
-use crate::state::{ClientMessage, GameState, MessageType, Player, ServerMessage, build_player};
+use crate::state::{
+    ClientMessage, GameError, GameState, MessageType, Player, ServerMessage, build_player,
+};
 use axum::extract::ws::{
     Message::{self, Text},
     WebSocket, WebSocketUpgrade,
 };
 use axum::extract::{Path, State};
-use futures::sink::{Sink, SinkExt};
 use futures::stream::{SplitSink, SplitStream, StreamExt};
+use futures::{
+    Stream,
+    sink::{Sink, SinkExt},
+};
 use std::collections::HashMap;
 use std::fmt::Debug;
 use std::sync::{Arc, Mutex};
@@ -33,6 +38,10 @@ async fn handle_socket(
             return;
         }
     };
+    if let Ok(msg) = receive_from_socket(&mut socket).await {
+        println!("{}", msg.contents);
+    }
+
     let player_id = add_new_player_and_send_from_tower(&state, &room_code, &sender);
 
     send_all_current_options_to_websocket(&state, &mut socket, &room_code).await;
@@ -47,7 +56,46 @@ async fn handle_socket(
             }
         }
     }
-    remove_player_and_send_from_tower(player_id, &state, &room_code, &sender);
+    disconnect_player_and_send_from_tower(player_id, &state, &room_code, &sender);
+}
+
+fn get_sender_and_receiver(
+    state: &Arc<Mutex<HashMap<String, GameState>>>,
+    room_code: &str,
+) -> Option<(Sender<String>, Receiver<String>)> {
+    let mut locked_rooms = state.lock().unwrap();
+    let game_state = locked_rooms.get_mut(room_code)?;
+
+    let new_sender = game_state.tower.clone();
+    let new_receiver = game_state.tower.subscribe();
+
+    Some((new_sender, new_receiver))
+}
+
+async fn send_to_socket<S, E>(socket: &mut S, text: &str)
+where
+    S: Sink<Message, Error = E> + Unpin,
+    E: Debug,
+{
+    if let Err(e) = socket.send(Text(text.into())).await {
+        println!("Error sending {text} to WebSocket due to {:?}", e);
+    }
+}
+
+async fn receive_from_socket<S>(socket: &mut S) -> Result<ClientMessage, GameError>
+where
+    S: Stream<Item = Result<Message, axum::Error>> + Unpin,
+{
+    let msg = socket.next().await.ok_or(GameError::UserDisconnected)??;
+    if let Text(text) = msg {
+        let parsed_msg = serde_json::from_str::<ClientMessage>(&text.to_string())?;
+        Ok(parsed_msg)
+    } else {
+        Err(GameError::WrongFrameType(format!(
+            "Expected Text enum got {:?}",
+            msg
+        )))
+    }
 }
 
 async fn check_message(
@@ -78,7 +126,7 @@ async fn check_message(
         }
         true
     } else {
-        println!("User disconnected");
+        println!("User {player_id} disconnected");
         false
     }
 }
@@ -91,6 +139,8 @@ fn evaluate_parsed_msg(
     player_id: &str,
 ) {
     match parsed_msg.message_type {
+        MessageType::NewPlayer => {}   // TODO
+        MessageType::PlayerToken => {} // TODO
         MessageType::NewOption => {
             add_option_to_room(state, parsed_msg.contents, room_code, sender);
         }
@@ -149,7 +199,7 @@ async fn send_all_current_options_to_websocket(
     }
 }
 
-fn remove_player_and_send_from_tower(
+fn disconnect_player_and_send_from_tower(
     player_id: String,
     state: &Arc<Mutex<HashMap<String, GameState>>>,
     room_code: &str,
@@ -160,7 +210,10 @@ fn remove_player_and_send_from_tower(
         .get_mut(room_code)
         .expect("Room doesn't exist although we just checked in prev function?")
         .players;
-    players.retain(|existing_player| existing_player.name != player_id);
+    if let Some(player) = players.iter_mut().find(|p| p.name == player_id) {
+        player.is_connected = false;
+        player.ready = false;
+    }
     send_ready_player_count(players, room_tower);
 }
 
@@ -183,7 +236,7 @@ fn add_new_player_and_send_from_tower(
 
 fn send_ready_player_count(players: &mut Vec<Player>, room_tower: &Sender<String>) {
     let ready_players = players.iter().filter(|player| player.ready).count();
-    let num_players = players.len();
+    let num_players = players.iter().filter(|player| player.is_connected).count();
     send_from_tower(
         MessageType::ToggleReady,
         format!("{ready_players}/{num_players}"),
@@ -233,27 +286,4 @@ fn to_server_message_json(message_type: MessageType, content: String) -> String 
         content,
     };
     serde_json::to_string(&outgoing_msg).unwrap()
-}
-
-fn get_sender_and_receiver(
-    state: &Arc<Mutex<HashMap<String, GameState>>>,
-    room_code: &str,
-) -> Option<(Sender<String>, Receiver<String>)> {
-    let mut locked_rooms = state.lock().unwrap();
-    let game_state = locked_rooms.get_mut(room_code)?;
-
-    let new_sender = game_state.tower.clone();
-    let new_receiver = game_state.tower.subscribe();
-
-    Some((new_sender, new_receiver))
-}
-
-async fn send_to_socket<S, E>(socket: &mut S, text: &str)
-where
-    S: Sink<Message, Error = E> + Unpin,
-    E: Debug,
-{
-    if let Err(e) = socket.send(Text(text.into())).await {
-        println!("Error sending {} to WebSocket due to {:?}", text, e);
-    }
 }

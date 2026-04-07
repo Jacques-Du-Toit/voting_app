@@ -1,15 +1,18 @@
-use crate::state::{
-    ClientMessage, GameError, GameState, MessageType, Player, ServerMessage, build_player,
+use crate::actions::{
+    active_old_player_and_send_from_tower, add_new_player_and_send_from_tower,
+    disconnect_player_and_send_from_tower, evaluate_parsed_msg, to_server_message_json,
 };
+use crate::state::{ClientMessage, GameError, GameState, MessageType};
+
 use axum::extract::ws::{
     Message::{self, Text},
     WebSocket, WebSocketUpgrade,
 };
 use axum::extract::{Path, State};
-use futures::stream::{SplitSink, SplitStream, StreamExt};
 use futures::{
     Stream,
     sink::{Sink, SinkExt},
+    stream::{SplitSink, SplitStream, StreamExt},
 };
 use std::collections::HashMap;
 use std::fmt::Debug;
@@ -24,6 +27,8 @@ pub async fn ws_handler(
     ws.on_upgrade(move |socket| handle_socket(state, socket, room_code))
 }
 
+/// Main loop that is ran per player,
+/// so each player will have a separate instance of this loop running for their websocket.
 async fn handle_socket(
     state: Arc<Mutex<HashMap<String, GameState>>>,
     mut socket: WebSocket,
@@ -38,6 +43,7 @@ async fn handle_socket(
             return;
         }
     };
+
     let player_id = match get_player_id(&mut socket, &state, &room_code, &sender).await {
         Ok(id) => id,
         Err(e) => {
@@ -62,6 +68,8 @@ async fn handle_socket(
     disconnect_player_and_send_from_tower(player_id, &state, &room_code, &sender);
 }
 
+/// Creates a copy of a room's sender and receiver objects,
+/// which are used to broadcast to all other websockets of other players
 fn get_sender_and_receiver(
     state: &Arc<Mutex<HashMap<String, GameState>>>,
     room_code: &str,
@@ -75,16 +83,19 @@ fn get_sender_and_receiver(
     Some((new_sender, new_receiver))
 }
 
+/// Used to check if there are any new messages from the receiver,
+/// messages from here will have been sent to all websockets.
 async fn check_receiver(
     receiver: &mut Receiver<String>,
     socket: &mut SplitSink<WebSocket, Message>,
 ) {
     match receiver.recv().await {
-        Ok(option) => send_to_socket(socket, &option).await,
-        Err(e) => println!("Error receiving option {:?}", e),
+        Ok(json_str) => send_to_socket(socket, &json_str).await,
+        Err(e) => println!("Error receiving json_str {:?}", e),
     };
 }
 
+/// Used to send to the current players websocket
 async fn send_to_socket<S, E>(socket: &mut S, text: &str)
 where
     S: Sink<Message, Error = E> + Unpin,
@@ -95,6 +106,8 @@ where
     }
 }
 
+/// Used to check if there is a message from the current players websocket,
+/// will hang until a message is receiver on the .await line
 async fn receive_from_socket<S>(socket: &mut S) -> Result<ClientMessage, GameError>
 where
     S: Stream<Item = Result<Message, axum::Error>> + Unpin,
@@ -144,40 +157,6 @@ where
     }
 }
 
-fn add_new_player_and_send_from_tower(
-    state: &Arc<Mutex<HashMap<String, GameState>>>,
-    room_code: &str,
-    room_tower: &Sender<String>,
-) -> String {
-    let mut locked_rooms = state.lock().unwrap();
-    let game_state = locked_rooms
-        .get_mut(room_code)
-        .expect("Room doesn't exist although we just checked in prev function?");
-    let players = &mut game_state.players;
-    game_state.latest_id += 1;
-    let player_id = game_state.latest_id.to_string();
-    players.push(build_player(player_id.clone()));
-    send_ready_player_count(players, room_tower);
-    player_id
-}
-
-fn active_old_player_and_send_from_tower(
-    state: &Arc<Mutex<HashMap<String, GameState>>>,
-    room_code: &str,
-    room_tower: &Sender<String>,
-    player_id: &str,
-) {
-    let mut locked_rooms = state.lock().unwrap();
-    let players = &mut locked_rooms
-        .get_mut(room_code)
-        .expect("Room doesn't exist although we just checked in prev function?")
-        .players;
-    if let Some(old_player) = players.iter_mut().find(|p| p.name == player_id) {
-        old_player.is_connected = true;
-    }
-    send_ready_player_count(players, room_tower);
-}
-
 async fn check_message(
     socket: &mut SplitStream<WebSocket>,
     state: &Arc<Mutex<HashMap<String, GameState>>>,
@@ -193,53 +172,14 @@ async fn check_message(
         Err(e) => match e {
             GameError::WrongFrameType(fram_err) => {
                 println!("{:?}", fram_err);
-                true
+                true // Keep connection alive for bad frames
             }
             _ => {
                 println!("User {player_id} disconnected");
-                false
+                false // Break loop on disconnect or network error
             }
         },
     }
-}
-
-fn evaluate_parsed_msg(
-    parsed_msg: ClientMessage,
-    state: &Arc<Mutex<HashMap<String, GameState>>>,
-    room_code: &str,
-    sender: &Sender<String>,
-    player_id: &str,
-) {
-    match parsed_msg.message_type {
-        MessageType::NewPlayer => {}   // TODO
-        MessageType::PlayerToken => {} // TODO
-        MessageType::NewOption => {
-            add_option_to_room(state, parsed_msg.contents, room_code, sender);
-        }
-        MessageType::DeleteOption => {
-            remove_option_from_room(state, parsed_msg.contents, room_code, sender);
-        }
-        MessageType::ToggleReady => switch_player_ready(player_id, state, room_code, sender),
-        MessageType::Debug => println!("{}", parsed_msg.contents),
-    }
-}
-
-fn switch_player_ready(
-    player_id: &str,
-    state: &Arc<Mutex<HashMap<String, GameState>>>,
-    room_code: &str,
-    sender: &Sender<String>,
-) {
-    let mut locked_rooms = state.lock().unwrap();
-    let players = &mut locked_rooms
-        .get_mut(room_code)
-        .expect("Room doesn't exist although we just checked in prev function?")
-        .players;
-
-    if let Some(player) = players.iter_mut().find(|p| p.name == player_id) {
-        player.ready = !player.ready;
-    }
-    send_ready_player_count(players, sender)
 }
 
 async fn send_all_current_options_to_websocket(
@@ -257,78 +197,8 @@ async fn send_all_current_options_to_websocket(
     };
     for option in game_state_options {
         let json_string = to_server_message_json(MessageType::NewOption, option.clone());
+        // we dont want to broadcast so we don't use the sender here
+        // as they may have joined at a different time
         send_to_socket(socket, &json_string).await
     }
-}
-
-fn disconnect_player_and_send_from_tower(
-    player_id: String,
-    state: &Arc<Mutex<HashMap<String, GameState>>>,
-    room_code: &str,
-    room_tower: &Sender<String>,
-) {
-    let mut locked_rooms = state.lock().unwrap();
-    let players = &mut locked_rooms
-        .get_mut(room_code)
-        .expect("Room doesn't exist although we just checked in prev function?")
-        .players;
-    if let Some(player) = players.iter_mut().find(|p| p.name == player_id) {
-        player.is_connected = false;
-        player.ready = false;
-    }
-    send_ready_player_count(players, room_tower);
-}
-
-fn send_ready_player_count(players: &mut Vec<Player>, room_tower: &Sender<String>) {
-    let ready_players = players.iter().filter(|player| player.ready).count();
-    let num_players = players.iter().filter(|player| player.is_connected).count();
-    send_from_tower(
-        MessageType::ToggleReady,
-        format!("{ready_players}/{num_players}"),
-        room_tower,
-    );
-}
-
-fn remove_option_from_room(
-    state: &Arc<Mutex<HashMap<String, GameState>>>,
-    option: String,
-    room_code: &str,
-    room_tower: &Sender<String>,
-) -> Option<()> {
-    let mut locked_rooms = state.lock().unwrap();
-    let game_state = locked_rooms.get_mut(room_code)?;
-
-    game_state
-        .options
-        .retain(|existing_option| existing_option != &option);
-    send_from_tower(MessageType::DeleteOption, option, room_tower);
-    Some(())
-}
-
-fn add_option_to_room(
-    state: &Arc<Mutex<HashMap<String, GameState>>>,
-    option: String,
-    room_code: &str,
-    room_tower: &Sender<String>,
-) -> Option<()> {
-    let mut locked_rooms = state.lock().unwrap();
-    let game_state = locked_rooms.get_mut(room_code)?;
-    if !game_state.options.contains(&option) && (option != "") {
-        game_state.options.push(option.clone());
-        send_from_tower(MessageType::NewOption, option, room_tower);
-    }
-    Some(())
-}
-
-fn send_from_tower(message_type: MessageType, content: String, room_tower: &Sender<String>) {
-    let json_string = to_server_message_json(message_type, content);
-    let _ = room_tower.send(json_string);
-}
-
-fn to_server_message_json(message_type: MessageType, content: String) -> String {
-    let outgoing_msg = ServerMessage {
-        message_type,
-        content,
-    };
-    serde_json::to_string(&outgoing_msg).unwrap()
 }

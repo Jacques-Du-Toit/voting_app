@@ -33,7 +33,6 @@ pub struct Player {
     pub name: String,
     pub ready: bool,
     pub is_connected: bool,
-    pub session_token: String,
     pub option_scores: HashMap<String, f32>,
 }
 
@@ -42,7 +41,6 @@ pub fn build_player(name: String) -> Player {
         name,
         ready: false,
         is_connected: true,
-        session_token: "PLACEHOLDER".to_string(),
         option_scores: HashMap::new(),
     }
 }
@@ -63,11 +61,14 @@ pub fn build_gamestate() -> GameState {
     }
 }
 
+#[allow(dead_code)]
+#[derive(Debug)]
 pub enum GameError {
     UserDisconnected,
     NetworkFailure(axum::Error),
     ParseFailure(serde_json::Error),
     WrongFrameType(String),
+    WrongMessageType(String),
 }
 
 impl From<axum::Error> for GameError {

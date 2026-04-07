@@ -38,11 +38,14 @@ async fn handle_socket(
             return;
         }
     };
-    if let Ok(msg) = receive_from_socket(&mut socket).await {
-        println!("{}", msg.contents);
-    }
-
-    let player_id = add_new_player_and_send_from_tower(&state, &room_code, &sender);
+    let player_id = match get_player_id(&mut socket, &state, &room_code, &sender).await {
+        Ok(id) => id,
+        Err(e) => {
+            println!("Couldn't read player id {:?}", e);
+            return;
+        }
+    };
+    println!("{player_id} has connected");
 
     send_all_current_options_to_websocket(&state, &mut socket, &room_code).await;
 
@@ -72,6 +75,16 @@ fn get_sender_and_receiver(
     Some((new_sender, new_receiver))
 }
 
+async fn check_receiver(
+    receiver: &mut Receiver<String>,
+    socket: &mut SplitSink<WebSocket, Message>,
+) {
+    match receiver.recv().await {
+        Ok(option) => send_to_socket(socket, &option).await,
+        Err(e) => println!("Error receiving option {:?}", e),
+    };
+}
+
 async fn send_to_socket<S, E>(socket: &mut S, text: &str)
 where
     S: Sink<Message, Error = E> + Unpin,
@@ -98,6 +111,73 @@ where
     }
 }
 
+async fn get_player_id<S>(
+    socket: &mut S,
+    state: &Arc<Mutex<HashMap<String, GameState>>>,
+    room_code: &str,
+    room_tower: &Sender<String>,
+) -> Result<String, GameError>
+where
+    S: Stream<Item = Result<Message, axum::Error>> + Unpin,
+{
+    let client_msg = receive_from_socket(socket).await?;
+    match client_msg.message_type {
+        MessageType::NewPlayer => Ok(add_new_player_and_send_from_tower(
+            state, room_code, room_tower,
+        )),
+        MessageType::PlayerToken => {
+            active_old_player_and_send_from_tower(
+                state,
+                room_code,
+                room_tower,
+                &client_msg.contents,
+            );
+            Ok(client_msg.contents)
+        }
+        _ => {
+            println!("A different MessageType was sent before player Id was established.");
+            Err(GameError::WrongFrameType(format!(
+                "Received {:?} MessageType with contents {}",
+                client_msg.message_type, client_msg.contents
+            )))
+        }
+    }
+}
+
+fn add_new_player_and_send_from_tower(
+    state: &Arc<Mutex<HashMap<String, GameState>>>,
+    room_code: &str,
+    room_tower: &Sender<String>,
+) -> String {
+    let mut locked_rooms = state.lock().unwrap();
+    let game_state = locked_rooms
+        .get_mut(room_code)
+        .expect("Room doesn't exist although we just checked in prev function?");
+    let players = &mut game_state.players;
+    game_state.latest_id += 1;
+    let player_id = game_state.latest_id.to_string();
+    players.push(build_player(player_id.clone()));
+    send_ready_player_count(players, room_tower);
+    player_id
+}
+
+fn active_old_player_and_send_from_tower(
+    state: &Arc<Mutex<HashMap<String, GameState>>>,
+    room_code: &str,
+    room_tower: &Sender<String>,
+    player_id: &str,
+) {
+    let mut locked_rooms = state.lock().unwrap();
+    let players = &mut locked_rooms
+        .get_mut(room_code)
+        .expect("Room doesn't exist although we just checked in prev function?")
+        .players;
+    if let Some(old_player) = players.iter_mut().find(|p| p.name == player_id) {
+        old_player.is_connected = true;
+    }
+    send_ready_player_count(players, room_tower);
+}
+
 async fn check_message(
     socket: &mut SplitStream<WebSocket>,
     state: &Arc<Mutex<HashMap<String, GameState>>>,
@@ -105,29 +185,21 @@ async fn check_message(
     sender: &Sender<String>,
     player_id: &str,
 ) -> bool {
-    if let Some(msg) = socket.next().await {
-        let msg = match msg {
-            Ok(some_msg) => some_msg,
-            Err(e) => {
-                println!("Error reading message due to {:?}", e);
-                return false;
-            }
-        };
-        println!("Received a message: {:?}", msg);
-
-        if let Text(text) = msg {
-            let msg_str = text.to_string();
-
-            if let Ok(parsed_msg) = serde_json::from_str::<ClientMessage>(&msg_str) {
-                evaluate_parsed_msg(parsed_msg, state, room_code, sender, player_id);
-            } else {
-                println!("Failed to parse JSON: {}", msg_str);
-            }
+    match receive_from_socket(socket).await {
+        Ok(msg) => {
+            evaluate_parsed_msg(msg, state, room_code, sender, player_id);
+            true
         }
-        true
-    } else {
-        println!("User {player_id} disconnected");
-        false
+        Err(e) => match e {
+            GameError::WrongFrameType(fram_err) => {
+                println!("{:?}", fram_err);
+                true
+            }
+            _ => {
+                println!("User {player_id} disconnected");
+                false
+            }
+        },
     }
 }
 
@@ -150,16 +222,6 @@ fn evaluate_parsed_msg(
         MessageType::ToggleReady => switch_player_ready(player_id, state, room_code, sender),
         MessageType::Debug => println!("{}", parsed_msg.contents),
     }
-}
-
-async fn check_receiver(
-    receiver: &mut Receiver<String>,
-    socket: &mut SplitSink<WebSocket, Message>,
-) {
-    match receiver.recv().await {
-        Ok(option) => send_to_socket(socket, &option).await,
-        Err(e) => println!("Error receiving option {:?}", e),
-    };
 }
 
 fn switch_player_ready(
@@ -215,23 +277,6 @@ fn disconnect_player_and_send_from_tower(
         player.ready = false;
     }
     send_ready_player_count(players, room_tower);
-}
-
-fn add_new_player_and_send_from_tower(
-    state: &Arc<Mutex<HashMap<String, GameState>>>,
-    room_code: &str,
-    room_tower: &Sender<String>,
-) -> String {
-    let mut locked_rooms = state.lock().unwrap();
-    let game_state = locked_rooms
-        .get_mut(room_code)
-        .expect("Room doesn't exist although we just checked in prev function?");
-    let players = &mut game_state.players;
-    game_state.latest_id += 1;
-    let player_id = game_state.latest_id.to_string();
-    players.push(build_player(player_id.clone()));
-    send_ready_player_count(players, room_tower);
-    player_id
 }
 
 fn send_ready_player_count(players: &mut Vec<Player>, room_tower: &Sender<String>) {

@@ -1,4 +1,6 @@
 use crate::state::{ClientMessage, GameState, MessageType, Player, ServerMessage, build_player};
+use crate::websocket::send_message_to_socket;
+use axum::extract::ws::WebSocket;
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 use tokio::sync::broadcast::Sender;
@@ -29,21 +31,28 @@ pub fn evaluate_parsed_msg(
     }
 }
 
-/// Adds a new player to the GameState of the room and lets all websockets know the new ready/player count
-pub fn add_new_player_and_send_from_tower(
+/// Adds a new player to the GameState of the room,
+/// sends the id to the socket so it knows what the player is in future,
+/// lets all websockets know the new ready/player count
+pub async fn add_new_player_and_send_to_socket_and_tower(
     state: &Arc<Mutex<HashMap<String, GameState>>>,
     room_code: &str,
+    socket: &mut WebSocket,
     room_tower: &Sender<String>,
 ) -> String {
-    let mut locked_rooms = state.lock().unwrap();
-    let game_state = locked_rooms
-        .get_mut(room_code)
-        .expect("Room doesn't exist although we just checked in prev function?");
-    let players = &mut game_state.players;
-    game_state.latest_id += 1;
-    let player_id = game_state.latest_id.to_string();
-    players.push(build_player(player_id.clone()));
-    send_ready_player_count(players, room_tower);
+    let player_id = {
+        let mut locked_rooms = state.lock().unwrap();
+        let game_state = locked_rooms
+            .get_mut(room_code)
+            .expect("Room doesn't exist although we just checked in prev function?");
+        let players = &mut game_state.players;
+        game_state.latest_id += 1;
+        let player_id = game_state.latest_id.to_string();
+        players.push(build_player(player_id.clone()));
+        send_ready_player_count(players, room_tower);
+        player_id
+    };
+    send_message_to_socket(MessageType::PlayerToken, player_id.clone(), socket).await;
     player_id
 }
 

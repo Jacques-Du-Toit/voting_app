@@ -1,5 +1,5 @@
 use crate::actions::{
-    active_old_player_and_send_from_tower, add_new_player_and_send_from_tower,
+    active_old_player_and_send_from_tower, add_new_player_and_send_to_socket_and_tower,
     disconnect_player_and_send_from_tower, evaluate_parsed_msg, to_server_message_json,
 };
 use crate::state::{ClientMessage, GameError, GameState, MessageType};
@@ -95,7 +95,7 @@ async fn check_receiver(
     };
 }
 
-/// Used to send to the current players websocket
+/// Used to send a json string formatted with the message type and content to the current players websocket
 async fn send_to_socket<S, E>(socket: &mut S, text: &str)
 where
     S: Sink<Message, Error = E> + Unpin,
@@ -104,6 +104,18 @@ where
     if let Err(e) = socket.send(Text(text.into())).await {
         println!("Error sending {text} to WebSocket due to {:?}", e);
     }
+}
+
+pub async fn send_message_to_socket<S, E>(
+    message_type: MessageType,
+    content: String,
+    socket: &mut S,
+) where
+    S: Sink<Message, Error = E> + Unpin,
+    E: Debug,
+{
+    let json_string = to_server_message_json(message_type, content);
+    send_to_socket(socket, &json_string).await
 }
 
 /// Used to check if there is a message from the current players websocket,
@@ -124,20 +136,18 @@ where
     }
 }
 
-async fn get_player_id<S>(
-    socket: &mut S,
+async fn get_player_id(
+    socket: &mut WebSocket,
     state: &Arc<Mutex<HashMap<String, GameState>>>,
     room_code: &str,
     room_tower: &Sender<String>,
-) -> Result<String, GameError>
-where
-    S: Stream<Item = Result<Message, axum::Error>> + Unpin,
-{
+) -> Result<String, GameError> {
     let client_msg = receive_from_socket(socket).await?;
     match client_msg.message_type {
-        MessageType::NewPlayer => Ok(add_new_player_and_send_from_tower(
-            state, room_code, room_tower,
-        )),
+        MessageType::NewPlayer => Ok(add_new_player_and_send_to_socket_and_tower(
+            state, room_code, socket, room_tower,
+        )
+        .await),
         MessageType::PlayerToken => {
             active_old_player_and_send_from_tower(
                 state,
@@ -196,9 +206,8 @@ async fn send_all_current_options_to_websocket(
             .clone()
     };
     for option in game_state_options {
-        let json_string = to_server_message_json(MessageType::NewOption, option.clone());
         // we dont want to broadcast so we don't use the sender here
         // as they may have joined at a different time
-        send_to_socket(socket, &json_string).await
+        send_message_to_socket(MessageType::NewOption, option.clone(), socket).await;
     }
 }

@@ -152,6 +152,8 @@ fn send_ready_player_count(players: &mut Vec<Player>, room_tower: &Sender<String
     );
 }
 
+// THE BELOW 2 should probably be in websocket.rs
+
 fn send_from_tower(message_type: MessageType, content: String, room_tower: &Sender<String>) {
     let json_string = to_server_message_json(message_type, content);
     let _ = room_tower.send(json_string);

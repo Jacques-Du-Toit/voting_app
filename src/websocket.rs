@@ -34,7 +34,7 @@ async fn handle_socket(
     mut socket: WebSocket,
     room_code: String,
 ) {
-    println!("Someone connected to room {room_code}!");
+    println!("Someone connected to room {room_code}");
 
     let (sender, mut receiver) = match get_sender_and_receiver(&state, &room_code) {
         Some((s, r)) => (s, r),
@@ -43,7 +43,6 @@ async fn handle_socket(
             return;
         }
     };
-
     let player_id = match get_player_id(&mut socket, &state, &room_code, &sender).await {
         Ok(id) => id,
         Err(e) => {
@@ -136,37 +135,6 @@ where
     }
 }
 
-async fn get_player_id(
-    socket: &mut WebSocket,
-    state: &Arc<Mutex<HashMap<String, GameState>>>,
-    room_code: &str,
-    room_tower: &Sender<String>,
-) -> Result<String, GameError> {
-    let client_msg = receive_from_socket(socket).await?;
-    match client_msg.message_type {
-        MessageType::NewPlayer => Ok(add_new_player_and_send_to_socket_and_tower(
-            state, room_code, socket, room_tower,
-        )
-        .await),
-        MessageType::PlayerToken => {
-            active_old_player_and_send_from_tower(
-                state,
-                room_code,
-                room_tower,
-                &client_msg.contents,
-            );
-            Ok(client_msg.contents)
-        }
-        _ => {
-            println!("A different MessageType was sent before player Id was established.");
-            Err(GameError::WrongFrameType(format!(
-                "Received {:?} MessageType with contents {}",
-                client_msg.message_type, client_msg.contents
-            )))
-        }
-    }
-}
-
 async fn check_message(
     socket: &mut SplitStream<WebSocket>,
     state: &Arc<Mutex<HashMap<String, GameState>>>,
@@ -189,6 +157,40 @@ async fn check_message(
                 false // Break loop on disconnect or network error
             }
         },
+    }
+}
+
+/// THE BELOW 2 SHOULD PROBABLY BE IN actions.rs
+
+async fn get_player_id(
+    socket: &mut WebSocket,
+    state: &Arc<Mutex<HashMap<String, GameState>>>,
+    room_code: &str,
+    room_tower: &Sender<String>,
+) -> Result<String, GameError> {
+    let client_msg = receive_from_socket(socket).await?;
+    println!("{:?}", client_msg);
+    match client_msg.message_type {
+        MessageType::NewPlayer => Ok(add_new_player_and_send_to_socket_and_tower(
+            state, room_code, socket, room_tower,
+        )
+        .await),
+        MessageType::PlayerToken => {
+            active_old_player_and_send_from_tower(
+                state,
+                room_code,
+                room_tower,
+                &client_msg.contents,
+            );
+            Ok(client_msg.contents)
+        }
+        _ => {
+            println!("A different MessageType was sent before player Id was established.");
+            Err(GameError::WrongFrameType(format!(
+                "Received {:?} MessageType with contents {}",
+                client_msg.message_type, client_msg.contents
+            )))
+        }
     }
 }
 

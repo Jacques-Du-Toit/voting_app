@@ -12,7 +12,7 @@ pub enum MessageType {
     Debug,
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Debug)]
 pub struct ClientMessage {
     pub message_type: MessageType,
     pub contents: String,

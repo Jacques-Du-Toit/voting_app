@@ -10,7 +10,8 @@ const sendMessageToServer = function(messageType, messageContents) {
     socket.send(JSON.stringify(payload))
 }
 
-const savedToken = localStorage.getItem("player_token");
+const savedToken = localStorage.getItem(roomCode);
+console.log(savedToken)
 socket.onopen = function() {
     console.log("Connected to the server!");
     if (savedToken) {
@@ -78,7 +79,7 @@ socket.onmessage = function(event) {
 
     const serverMessage = JSON.parse(event.data);
     if (serverMessage.message_type == "PlayerToken") {
-        localStorage.setItem("player_token", serverMessage.content);
+        localStorage.setItem(roomCode, serverMessage.content);
     }
     else if (serverMessage.message_type == "ToggleReady") {
         playerCount.textContent = `Ready: ${serverMessage.content}`;

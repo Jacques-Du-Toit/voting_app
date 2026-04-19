@@ -126,6 +126,7 @@ where
     let msg = socket.next().await.ok_or(GameError::UserDisconnected)??;
     if let Text(text) = msg {
         let parsed_msg = serde_json::from_str::<ClientMessage>(&text.to_string())?;
+        println!("Received from client: {:?}", parsed_msg);
         Ok(parsed_msg)
     } else {
         Err(GameError::WrongFrameType(format!(
@@ -169,7 +170,6 @@ async fn get_player_id(
     room_tower: &Sender<String>,
 ) -> Result<String, GameError> {
     let client_msg = receive_from_socket(socket).await?;
-    println!("{:?}", client_msg);
     match client_msg.message_type {
         MessageType::NewPlayer => Ok(add_new_player_and_send_to_socket_and_tower(
             state, room_code, socket, room_tower,

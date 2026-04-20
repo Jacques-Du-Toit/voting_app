@@ -1,5 +1,5 @@
-use crate::state::{ClientMessage, GameState, MessageType, Player, ServerMessage, build_player};
-use crate::websocket::send_message_to_socket;
+use crate::state::{ClientMessage, GameError, GameState, MessageType, Player, build_player};
+use crate::websocket::{receive_from_socket, send_from_tower, send_message_to_socket};
 use axum::extract::ws::WebSocket;
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
@@ -145,24 +145,41 @@ fn remove_option_from_room(
 fn send_ready_player_count(players: &mut Vec<Player>, room_tower: &Sender<String>) {
     let ready_players = players.iter().filter(|player| player.ready).count();
     let num_players = players.iter().filter(|player| player.is_connected).count();
+    let all_ready = ready_players == num_players;
     send_from_tower(
         MessageType::ToggleReady,
-        format!("{ready_players}/{num_players}"),
+        format!("{ready_players}/{num_players} {all_ready}"),
         room_tower,
     );
 }
 
-// THE BELOW 2 should probably be in websocket.rs
-
-fn send_from_tower(message_type: MessageType, content: String, room_tower: &Sender<String>) {
-    let json_string = to_server_message_json(message_type, content);
-    let _ = room_tower.send(json_string);
-}
-
-pub fn to_server_message_json(message_type: MessageType, content: String) -> String {
-    let outgoing_msg = ServerMessage {
-        message_type,
-        content,
-    };
-    serde_json::to_string(&outgoing_msg).unwrap()
+pub async fn get_player_id(
+    socket: &mut WebSocket,
+    state: &Arc<Mutex<HashMap<String, GameState>>>,
+    room_code: &str,
+    room_tower: &Sender<String>,
+) -> Result<String, GameError> {
+    let client_msg = receive_from_socket(socket).await?;
+    match client_msg.message_type {
+        MessageType::NewPlayer => Ok(add_new_player_and_send_to_socket_and_tower(
+            state, room_code, socket, room_tower,
+        )
+        .await),
+        MessageType::PlayerToken => {
+            active_old_player_and_send_from_tower(
+                state,
+                room_code,
+                room_tower,
+                &client_msg.contents,
+            );
+            Ok(client_msg.contents)
+        }
+        _ => {
+            println!("A different MessageType was sent before player Id was established.");
+            Err(GameError::WrongFrameType(format!(
+                "Received {:?} MessageType with contents {}",
+                client_msg.message_type, client_msg.contents
+            )))
+        }
+    }
 }

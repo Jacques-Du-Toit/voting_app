@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css">
-    <link rel="stylesheet" href="/style.css">
+    <link rel="stylesheet" href="/style.css?v=1">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Voting App</title>
@@ -12,13 +12,14 @@
         <div id="ready_bar">
             <h3 id="player_count_display">Ready: 0/1</h3>
             <button type="button" id="ready_btn">Ready</button>
+            <button type="button" id="start_btn" disabled>Start</button>
         </div>
         <form id="option_form">
             <input type="text" id="add_option_box" maxlength="50">
             <button type="submit">Add Option</button>
         </form>
         <div id="options_list"></div>
-        <script src="/app.js?v=2"></script>
+        <script src="/app.js?v=7"></script>
     </main>
 </body>
 </html>

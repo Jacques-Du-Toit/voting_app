@@ -1,8 +1,5 @@
-use crate::actions::{
-    active_old_player_and_send_from_tower, add_new_player_and_send_to_socket_and_tower,
-    disconnect_player_and_send_from_tower, evaluate_parsed_msg, to_server_message_json,
-};
-use crate::state::{ClientMessage, GameError, GameState, MessageType};
+use crate::actions::{disconnect_player_and_send_from_tower, evaluate_parsed_msg, get_player_id};
+use crate::state::{ClientMessage, GameError, GameState, MessageType, ServerMessage};
 
 use axum::extract::ws::{
     Message::{self, Text},
@@ -119,7 +116,7 @@ pub async fn send_message_to_socket<S, E>(
 
 /// Used to check if there is a message from the current players websocket,
 /// will hang until a message is receiver on the .await line
-async fn receive_from_socket<S>(socket: &mut S) -> Result<ClientMessage, GameError>
+pub async fn receive_from_socket<S>(socket: &mut S) -> Result<ClientMessage, GameError>
 where
     S: Stream<Item = Result<Message, axum::Error>> + Unpin,
 {
@@ -161,37 +158,17 @@ async fn check_message(
     }
 }
 
-/// THE BELOW 2 SHOULD PROBABLY BE IN actions.rs
+pub fn send_from_tower(message_type: MessageType, content: String, room_tower: &Sender<String>) {
+    let json_string = to_server_message_json(message_type, content);
+    let _ = room_tower.send(json_string);
+}
 
-async fn get_player_id(
-    socket: &mut WebSocket,
-    state: &Arc<Mutex<HashMap<String, GameState>>>,
-    room_code: &str,
-    room_tower: &Sender<String>,
-) -> Result<String, GameError> {
-    let client_msg = receive_from_socket(socket).await?;
-    match client_msg.message_type {
-        MessageType::NewPlayer => Ok(add_new_player_and_send_to_socket_and_tower(
-            state, room_code, socket, room_tower,
-        )
-        .await),
-        MessageType::PlayerToken => {
-            active_old_player_and_send_from_tower(
-                state,
-                room_code,
-                room_tower,
-                &client_msg.contents,
-            );
-            Ok(client_msg.contents)
-        }
-        _ => {
-            println!("A different MessageType was sent before player Id was established.");
-            Err(GameError::WrongFrameType(format!(
-                "Received {:?} MessageType with contents {}",
-                client_msg.message_type, client_msg.contents
-            )))
-        }
-    }
+fn to_server_message_json(message_type: MessageType, content: String) -> String {
+    let outgoing_msg = ServerMessage {
+        message_type,
+        content,
+    };
+    serde_json::to_string(&outgoing_msg).unwrap()
 }
 
 async fn send_all_current_options_to_websocket(

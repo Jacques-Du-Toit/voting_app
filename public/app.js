@@ -24,6 +24,7 @@ socket.onopen = function() {
 
 const playerCount = document.getElementById("player_count_display");
 const readyBtn = document.getElementById("ready_btn");
+const startBtn = document.getElementById("start_btn");
 const form = document.getElementById("option_form");
 const inputBox = document.getElementById("add_option_box");
 const optionList = document.getElementById("options_list");
@@ -82,7 +83,15 @@ socket.onmessage = function(event) {
         localStorage.setItem(roomCode, serverMessage.content);
     }
     else if (serverMessage.message_type == "ToggleReady") {
-        playerCount.textContent = `Ready: ${serverMessage.content}`;
+        const [readyTxt, allReady] = serverMessage.content.split(' ');
+        playerCount.textContent = `Ready: ${readyTxt}`;
+        if (allReady == "true") {
+            startBtn.disabled = false;
+        }
+        else {
+            startBtn.disabled = true;
+        }
+
     }
     else if (serverMessage.message_type == "NewOption") {
         addNewOption(serverMessage.content, optionList);

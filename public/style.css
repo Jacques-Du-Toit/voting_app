@@ -3,3 +3,6 @@
     align-items: center;
     gap: 20px;
 }
+#start_btn {
+    margin-left: auto;
+}

@@ -1,4 +1,4 @@
-mod actions;
+mod lobby;
 mod state;
 mod websocket;
 

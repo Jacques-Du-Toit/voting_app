@@ -6,3 +6,6 @@
 #start_btn {
     margin-left: auto;
 }
+.hidden {
+    display: none !important;
+}

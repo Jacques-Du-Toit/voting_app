@@ -1,35 +1,9 @@
-use crate::state::{ClientMessage, GameError, GameState, MessageType, Player, build_player};
+use crate::state::{GameError, GameState, MessageType, Player, build_player};
 use crate::websocket::{receive_from_socket, send_from_tower, send_message_to_socket};
 use axum::extract::ws::WebSocket;
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 use tokio::sync::broadcast::Sender;
-
-/// Calls certain code when a message is received from the websocket
-pub fn evaluate_parsed_msg(
-    parsed_msg: ClientMessage,
-    state: &Arc<Mutex<HashMap<String, GameState>>>,
-    room_code: &str,
-    sender: &Sender<String>,
-    player_id: &str,
-) {
-    match parsed_msg.message_type {
-        MessageType::NewPlayer => println!(
-            "Got NewPlayer Client Message but should have already been handled in handshake"
-        ),
-        MessageType::PlayerToken => println!(
-            "Got PlayerToken Client Message but should have already been handled in handshake"
-        ),
-        MessageType::NewOption => {
-            add_option_to_room(state, parsed_msg.contents, room_code, sender);
-        }
-        MessageType::DeleteOption => {
-            remove_option_from_room(state, parsed_msg.contents, room_code, sender);
-        }
-        MessageType::ToggleReady => switch_player_ready(player_id, state, room_code, sender),
-        MessageType::Debug => println!("{}", parsed_msg.contents),
-    }
-}
 
 /// Adds a new player to the GameState of the room,
 /// sends the id to the socket so it knows what the player is in future,
@@ -93,7 +67,7 @@ pub fn disconnect_player_and_send_from_tower(
     send_ready_player_count(players, room_tower);
 }
 
-fn switch_player_ready(
+pub fn switch_player_ready(
     player_id: &str,
     state: &Arc<Mutex<HashMap<String, GameState>>>,
     room_code: &str,
@@ -111,7 +85,7 @@ fn switch_player_ready(
     send_ready_player_count(players, sender)
 }
 
-fn add_option_to_room(
+pub fn add_option_to_room(
     state: &Arc<Mutex<HashMap<String, GameState>>>,
     option: String,
     room_code: &str,
@@ -126,7 +100,7 @@ fn add_option_to_room(
     Some(())
 }
 
-fn remove_option_from_room(
+pub fn remove_option_from_room(
     state: &Arc<Mutex<HashMap<String, GameState>>>,
     option: String,
     room_code: &str,

@@ -1,4 +1,7 @@
-use crate::lobby::{disconnect_player_and_send_from_tower, evaluate_parsed_msg, get_player_id};
+use crate::lobby::{
+    add_option_to_room, disconnect_player_and_send_from_tower, get_player_id,
+    remove_option_from_room, switch_player_ready,
+};
 use crate::state::{ClientMessage, GameError, GameState, MessageType, ServerMessage};
 
 use axum::extract::ws::{
@@ -189,4 +192,35 @@ async fn send_all_current_options_to_websocket(
         // as they may have joined at a different time
         send_message_to_socket(MessageType::NewOption, option.clone(), socket).await;
     }
+}
+
+/// Calls certain code when a message is received from the websocket
+fn evaluate_parsed_msg(
+    parsed_msg: ClientMessage,
+    state: &Arc<Mutex<HashMap<String, GameState>>>,
+    room_code: &str,
+    sender: &Sender<String>,
+    player_id: &str,
+) {
+    match parsed_msg.message_type {
+        MessageType::NewPlayer => println!(
+            "Got NewPlayer Client Message but should have already been handled in handshake"
+        ),
+        MessageType::PlayerToken => println!(
+            "Got PlayerToken Client Message but should have already been handled in handshake"
+        ),
+        MessageType::NewOption => {
+            add_option_to_room(state, parsed_msg.contents, room_code, sender);
+        }
+        MessageType::DeleteOption => {
+            remove_option_from_room(state, parsed_msg.contents, room_code, sender);
+        }
+        MessageType::ToggleReady => switch_player_ready(player_id, state, room_code, sender),
+        MessageType::ChangeState => change_state(parsed_msg.contents, sender),
+        MessageType::Debug => println!("{}", parsed_msg.contents),
+    }
+}
+
+fn change_state(state: String, sender: &Sender<String>) {
+    send_from_tower(MessageType::ChangeState, state, sender);
 }

@@ -9,17 +9,21 @@
 </head>
 <body>
     <main class="container">
-        <div id="ready_bar">
-            <h3 id="player_count_display">Ready: 0/1</h3>
-            <button type="button" id="ready_btn">Ready</button>
-            <button type="button" id="start_btn" disabled>Start</button>
+        <div id="lobby_screen">
+            <div id="ready_bar">
+                <h3 id="player_count_display">Ready: 0/1</h3>
+                <button type="button" id="ready_btn">Ready</button>
+                <button type="button" id="start_btn" disabled>Start</button>
+            </div>
+            <form id="option_form">
+                <input type="text" id="add_option_box" maxlength="50">
+                <button type="submit">Add Option</button>
+            </form>
+            <div id="options_list"></div>
         </div>
-        <form id="option_form">
-            <input type="text" id="add_option_box" maxlength="50">
-            <button type="submit">Add Option</button>
-        </form>
-        <div id="options_list"></div>
-        <script type="module" src="/app.js?v=1"></script>
+        <div id="voting_screen" class="hidden">
+        </div>
+        <script type="module" src="/app.js?v=2"></script>
     </main>
 </body>
 </html>

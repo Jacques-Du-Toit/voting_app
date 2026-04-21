@@ -12,6 +12,10 @@ readyBtn.onclick = function() {
     sendToServer("ToggleReady", "")
 }
 
+startBtn.onclick = function() {
+    sendToServer("ChangeState", "voting")
+}
+
 form.addEventListener("submit", function(event) {
     event.preventDefault(); 
     const optionText = inputBox.value.trim();
@@ -59,7 +63,6 @@ export const checkMessageLobby = function(serverMessage) {
         else {
             startBtn.disabled = true;
         }
-
     }
     else if (serverMessage.message_type == "NewOption") {
         addNewOption(serverMessage.content, optionList);

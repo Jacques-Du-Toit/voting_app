@@ -14,6 +14,14 @@ socket.onopen = function() {
     }
 };
 
+const lobbyScreen = document.getElementById("lobby_screen");
+const votingScreen = document.getElementById("voting_screen");
+const screens = {
+    "lobby": lobbyScreen,
+    "voting": votingScreen
+};
+
+let state = "lobby"; // Need to ask server for the current state if someone joins late or rejoins
 socket.onmessage = function(event) {
     console.log("The server says: ", event.data);
     
@@ -25,5 +33,25 @@ socket.onmessage = function(event) {
         return;
     }
     const serverMessage = JSON.parse(event.data);
-    checkMessageLobby(serverMessage);
+
+    if (serverMessage.message_type === "ChangeState") {
+        const newState = serverMessage.message_type;
+        for (const [screenName, screenElement] of Object.entries(screens)) {
+            if (screenName === newState) {
+                screenElement?.classList.remove("hidden");
+            }
+            else {
+                screenElement?.classList.add("hidden");
+            }
+        }
+        state = newState;
+        return;
+    }
+
+    if (state == "lobby"){
+        checkMessageLobby(serverMessage);
+    }
+    else {
+        console.log(`Unknown state: ${state}`);
+    }
 };

@@ -16,9 +16,11 @@ socket.onopen = function() {
 
 const lobbyScreen = document.getElementById("lobby_screen");
 const votingScreen = document.getElementById("voting_screen");
+const rankedVotingScreen = document.getElementById("ranked_voting_screen");
 const screens = {
     "lobby": lobbyScreen,
-    "voting": votingScreen
+    "voting": votingScreen,
+    "ranked_voting": rankedVotingScreen
 };
 
 let state = "lobby"; // Need to ask server for the current state if someone joins late or rejoins

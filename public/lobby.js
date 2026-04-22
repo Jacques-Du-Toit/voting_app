@@ -13,7 +13,7 @@ readyBtn.onclick = function() {
 }
 
 startBtn.onclick = function() {
-    sendToServer("ChangeState", "voting")
+    sendToServer("ChangeState", "ranked_voting") // eventually change to select_voting
 }
 
 form.addEventListener("submit", function(event) {

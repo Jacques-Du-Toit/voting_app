@@ -19,3 +19,17 @@ body.centered-error-page {
     max-width: 600px;     
     margin: 0 auto;   
 }
+.sortable-item {
+    cursor: grab;
+    padding: 10px;
+    margin-bottom: 5px;
+    background-color: #f1f1f1;
+    border-radius: 5px;
+}
+.sortable-item:active {
+    cursor: grabbing;
+}
+.dragging-state {
+    opacity: 0.4;
+    background-color: #ccc;
+}

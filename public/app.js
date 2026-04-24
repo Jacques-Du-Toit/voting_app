@@ -1,6 +1,7 @@
 // @ts-check
 import { sendToServer, roomCode, socket } from "./socket.js";
 import { checkMessageLobby } from "./lobby.js";
+import "./ranked_voting.js";
 
 const savedToken = localStorage.getItem(roomCode);
 console.log(savedToken)

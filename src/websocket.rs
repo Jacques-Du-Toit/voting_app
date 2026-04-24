@@ -209,6 +209,7 @@ fn evaluate_parsed_msg(
         MessageType::PlayerToken => println!(
             "Got PlayerToken Client Message but should have already been handled in handshake"
         ),
+        MessageType::OptionsOrder => println!("Doing nothing for now"),
         MessageType::NewOption => {
             add_option_to_room(state, parsed_msg.contents, room_code, sender);
         }

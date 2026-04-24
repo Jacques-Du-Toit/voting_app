@@ -6,6 +6,7 @@ use tokio::sync::broadcast::Sender;
 pub enum MessageType {
     NewPlayer,
     PlayerToken,
+    OptionsOrder,
     NewOption,
     DeleteOption,
     ToggleReady,

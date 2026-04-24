@@ -9,12 +9,20 @@ const form = document.getElementById("option_form");
 const inputBox = document.getElementById("add_option_box");
 const optionList = document.getElementById("options_list");
 
+const sendOptionOrdering = function() {
+    console.log("Trying");
+    const items = document.querySelectorAll("#options_list .sortable-item");
+    const optionsOrder = Array.from(items).map(item => item.getAttribute("data-option"));
+    sendToServer("OptionsOrder", optionsOrder.join(","));
+}
+
 if (optionList) {
     new Sortable(optionList, {
         animation: 150, // Adds a smooth sliding animation (in milliseconds)
         ghostClass: 'dragging-state', // The class applied to the space left behind
-        delay: 10, // Important for mobile: wait 100ms before dragging so users can still scroll the page
-        delayOnTouchOnly: true
+        delay: 10, // Important for mobile: wait 10ms before dragging so users can still scroll the page
+        delayOnTouchOnly: true,
+        onEnd: sendOptionOrdering
     });
 }
 
@@ -23,6 +31,7 @@ readyBtn.onclick = function() {
 }
 
 startBtn.onclick = function() {
+    sendOptionOrdering();
     sendToServer("ChangeState", "ranked_voting") // eventually change to select_voting
 }
 

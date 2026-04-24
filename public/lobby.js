@@ -4,7 +4,7 @@ import { sendToServer, roomCode } from "./socket.js";
 
 const playerCount = document.getElementById("player_count_display");
 const readyBtn = document.getElementById("ready_btn");
-const startBtn = document.getElementById("start_btn");
+const nextBtn = document.getElementById("next_btn");
 const form = document.getElementById("option_form");
 const inputBox = document.getElementById("add_option_box");
 const optionList = document.getElementById("options_list");
@@ -29,9 +29,9 @@ readyBtn.onclick = function() {
     sendToServer("ToggleReady", "")
 }
 
-startBtn.onclick = function() {
+nextBtn.onclick = function() {
     sendOptionOrdering();
-    sendToServer("ChangeState", "ranked_voting") // eventually change to select_voting
+    sendToServer("ChangeState", "results") // eventually change to select_voting
 }
 
 form.addEventListener("submit", function(event) {
@@ -87,10 +87,10 @@ export const checkMessageLobby = function(serverMessage) {
         const [readyTxt, allReady] = serverMessage.content.split(' ');
         playerCount.textContent = readyTxt;
         if (allReady == "true") {
-            startBtn.disabled = false;
+            nextBtn.disabled = false;
         }
         else {
-            startBtn.disabled = true;
+            nextBtn.disabled = true;
         }
     }
     else if (serverMessage.message_type == "NewOption") {

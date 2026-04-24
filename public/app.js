@@ -20,10 +20,12 @@ roomTitle.textContent = roomCode;
 const lobbyScreen = document.getElementById("lobby_screen");
 const votingScreen = document.getElementById("voting_screen");
 const rankedVotingScreen = document.getElementById("ranked_voting_screen");
+const resultsScreen = document.getElementById("results_screen");
 const screens = {
     "lobby": lobbyScreen,
     "voting": votingScreen,
-    "ranked_voting": rankedVotingScreen
+    "ranked_voting": rankedVotingScreen,
+    "results": resultsScreen,
 };
 
 let state = "lobby"; // Need to ask server for the current state if someone joins late or rejoins

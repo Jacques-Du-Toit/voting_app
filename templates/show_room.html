@@ -14,7 +14,7 @@
                 <button type="button" id="ready_btn">Ready</button>
                 <h3 id="player_count_display">0/1</h3>
                 <h3 id="lobby_title" class="centered-text">Options</h3>
-                <button type="button" id="start_btn" disabled>Start</button>
+                <button type="button" id="next_btn" disabled>Next</button>
             </div>
             <form id="option_form">
                 <input type="text" id="add_option_box" maxlength="50">
@@ -26,8 +26,11 @@
         <div id="ranked_voting_screen" class="hidden">
             <h3 id="ranked_voting_title" class="centered-text">Rank Options</h3>
         </div>
+        <div id="results_screen" class="hidden">
+            <h3 id="results_title" class="centered-text">Results</h3>
+        </div>
         <h3 id="room_title" class="centered-bottom-text"></h3>
-        <script type="module" src="/app.js?v=2"></script>
+        <script type="module" src="/app.js?v=3"></script>
     </main>
 </body>
 </html>

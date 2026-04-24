@@ -13,7 +13,7 @@ if (optionList) {
     new Sortable(optionList, {
         animation: 150, // Adds a smooth sliding animation (in milliseconds)
         ghostClass: 'dragging-state', // The class applied to the space left behind
-        delay: 100, // Important for mobile: wait 100ms before dragging so users can still scroll the page
+        delay: 10, // Important for mobile: wait 100ms before dragging so users can still scroll the page
         delayOnTouchOnly: true
     });
 }
@@ -56,7 +56,19 @@ const addNewOption = function(option_text, optionList) {
 }
 
 const removeOption = function(option_text) {
-    document.querySelector(`[data-option="${option_text}"]`).remove();
+    const item = document.querySelector(`[data-option="${option_text}"]`);
+    if (!item) return; 
+
+    const animation = item.animate([
+        { opacity: 1, transform: 'scale(1)' },     // Start state
+        { opacity: 0, transform: 'scale(0.9)' }    // End state (faded and slightly shrunk)
+    ], {
+        duration: 300,        // How long it takes in milliseconds
+        easing: 'ease-out'    // Makes the animation start fast and slow down at the end
+    });
+    animation.onfinish = () => {
+        item.remove();
+    };
 }
 
 export const checkMessageLobby = function(serverMessage) {

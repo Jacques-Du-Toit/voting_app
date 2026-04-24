@@ -11,9 +11,9 @@
     <main class="container">
         <div id="lobby_screen">
             <div id="ready_bar">
-                <h3 id="player_count_display">Ready: 0/1</h3>
                 <button type="button" id="ready_btn">Ready</button>
-                <h3 id="lobby_title" class="centered-box">Add Options</h3>
+                <h3 id="player_count_display">0/1</h3>
+                <h3 id="lobby_title" class="centered-text">Add Options</h3>
                 <button type="button" id="start_btn" disabled>Start</button>
             </div>
             <form id="option_form">
@@ -24,14 +24,15 @@
         </div>
         <div id="voting_screen" class="hidden"></div>
         <div id="ranked_voting_screen" class="hidden">
-            <h3 id="ranked_voting_title" class="centered-box">Rank Options</h3>
+            <h3 id="ranked_voting_title" class="centered-text">Rank Options</h3>
             <ul id="ranked_options_list">
                 <li data-id="Pizza" class="sortable-item">Pizza</li>
                 <li data-id="Burgers" class="sortable-item">Burgers</li>
                 <li data-id="Sushi" class="sortable-item">Sushi</li>
             </ul>
         </div>
-        <script type="module" src="/app.js?v=9"></script>
+        <h3 id="room_title" class="centered-bottom-text"></h3>
+        <script type="module" src="/app.js?v=3"></script>
     </main>
 </body>
 </html>

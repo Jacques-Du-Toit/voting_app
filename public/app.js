@@ -15,6 +15,9 @@ socket.onopen = function() {
     }
 };
 
+const roomTitle = document.getElementById("room_title");
+roomTitle.textContent = roomCode;
+
 const lobbyScreen = document.getElementById("lobby_screen");
 const votingScreen = document.getElementById("voting_screen");
 const rankedVotingScreen = document.getElementById("ranked_voting_screen");

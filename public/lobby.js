@@ -3,13 +3,10 @@ import { sendToServer, roomCode } from "./socket.js";
 
 const playerCount = document.getElementById("player_count_display");
 const readyBtn = document.getElementById("ready_btn");
-const lobbyTitle = document.getElementById("lobby_title");
 const startBtn = document.getElementById("start_btn");
 const form = document.getElementById("option_form");
 const inputBox = document.getElementById("add_option_box");
 const optionList = document.getElementById("options_list");
-
-lobbyTitle.textContent = `${roomCode} | Add Options`;
 
 readyBtn.onclick = function() {
     sendToServer("ToggleReady", "")
@@ -59,7 +56,7 @@ export const checkMessageLobby = function(serverMessage) {
     }
     else if (serverMessage.message_type == "ToggleReady") {
         const [readyTxt, allReady] = serverMessage.content.split(' ');
-        playerCount.textContent = `Ready: ${readyTxt}`;
+        playerCount.textContent = readyTxt;
         if (allReady == "true") {
             startBtn.disabled = false;
         }

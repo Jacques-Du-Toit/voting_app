@@ -12,8 +12,26 @@ body.centered-error-page {
 #start_btn {
     margin-left: auto;
 }
+#ranked_options_list {
+    list-style-type: none; 
+    padding-left: 0;       
+    width: calc(100% - 40px); 
+    max-width: 500px;      
+    margin: 0 auto;        
+}
 .hidden {
     display: none !important;
+}
+.centered-text {
+    text-align: center;
+}
+.centered-bottom-text {
+    position: fixed;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    margin: 0;
+    text-align: center;
 }
 .centered-box {
     max-width: 600px;     
@@ -23,13 +41,14 @@ body.centered-error-page {
     cursor: grab;
     padding: 10px;
     margin-bottom: 5px;
-    background-color: #f1f1f1;
+    background-color: #0c5cb0;
     border-radius: 5px;
+    border-right: 8px solid #073a70;
 }
 .sortable-item:active {
     cursor: grabbing;
 }
 .dragging-state {
     opacity: 0.4;
-    background-color: #ccc;
+    background-color: #1079e8;
 }

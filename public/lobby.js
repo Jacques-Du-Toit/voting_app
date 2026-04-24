@@ -1,4 +1,5 @@
 // @ts-check
+import Sortable from 'https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/+esm';
 import { sendToServer, roomCode } from "./socket.js";
 
 const playerCount = document.getElementById("player_count_display");
@@ -7,6 +8,15 @@ const startBtn = document.getElementById("start_btn");
 const form = document.getElementById("option_form");
 const inputBox = document.getElementById("add_option_box");
 const optionList = document.getElementById("options_list");
+
+if (optionList) {
+    new Sortable(optionList, {
+        animation: 150, // Adds a smooth sliding animation (in milliseconds)
+        ghostClass: 'dragging-state', // The class applied to the space left behind
+        delay: 100, // Important for mobile: wait 100ms before dragging so users can still scroll the page
+        delayOnTouchOnly: true
+    });
+}
 
 readyBtn.onclick = function() {
     sendToServer("ToggleReady", "")
@@ -29,15 +39,14 @@ form.addEventListener("submit", function(event) {
 const addNewOption = function(option_text, optionList) {
     const newOptionContainer = document.createElement("li");
     newOptionContainer.setAttribute("data-option", option_text);
-    newOptionContainer.style.marginLeft = "35px";
+    newOptionContainer.setAttribute("class", "sortable-item");
 
     const optionText = document.createElement("span");
     optionText.textContent = option_text;
     
     const deleteBtn = document.createElement("button");
     deleteBtn.textContent = "X";
-    deleteBtn.className = "outline"; 
-    deleteBtn.style.marginLeft = "20px";
+    deleteBtn.className = "delete-btn"
     deleteBtn.onclick = function() {sendToServer("DeleteOption", optionText.textContent)};
     
     newOptionContainer.appendChild(optionText);

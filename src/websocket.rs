@@ -52,7 +52,7 @@ async fn handle_socket(
     };
     println!("{player_id} has connected");
 
-    send_all_current_options_to_websocket(&state, &mut socket, &room_code).await;
+    send_all_current_options_to_websocket(&state, &mut socket, &room_code, &player_id).await;
 
     let (mut socket_write, mut socket_read) = socket.split();
 
@@ -174,23 +174,39 @@ fn to_server_message_json(message_type: MessageType, content: String) -> String 
     serde_json::to_string(&outgoing_msg).unwrap()
 }
 
+fn hashmap_to_vector(map: HashMap<String, f32>) -> Vec<String> {
+    let mut sorted_pairs: Vec<(String, f32)> = map.into_iter().collect();
+    sorted_pairs.sort_by(|(_, val_a), (_, val_b)| val_a.partial_cmp(val_b).unwrap());
+    sorted_pairs.into_iter().map(|(key, _)| key).collect()
+}
+
 async fn send_all_current_options_to_websocket(
     state: &Arc<Mutex<HashMap<String, GameState>>>,
     socket: &mut WebSocket,
     room_code: &str,
+    player_id: &str,
 ) {
-    let game_state_options = {
+    let (game_state_options, player_options) = {
         let locked_rooms = state.lock().unwrap();
-        locked_rooms
+        let room = locked_rooms
             .get(room_code)
-            .expect("Room doesn't exist although we just checked in prev function?")
-            .options
-            .clone()
+            .expect("Room doesn't exist although we just checked in prev function?");
+        if let Some(player) = room.players.iter().find(|p| p.name == player_id) {
+            (
+                room.options.clone(),
+                hashmap_to_vector(player.option_scores.clone()),
+            )
+        } else {
+            (room.options.clone(), vec![])
+        }
     };
-    for option in game_state_options {
-        // we dont want to broadcast so we don't use the sender here
-        // as they may have joined at a different time
-        send_message_to_socket(MessageType::NewOption, option.clone(), socket).await;
+    // first send any new options they haven't seen, then ones they've already ranked
+    let missing_options: Vec<String> = game_state_options
+        .into_iter()
+        .filter(|option| !player_options.contains(option))
+        .collect();
+    for option in player_options.into_iter().chain(missing_options) {
+        send_message_to_socket(MessageType::NewOption, option, socket).await;
     }
 }
 

@@ -10,7 +10,6 @@ const inputBox = document.getElementById("add_option_box");
 const optionList = document.getElementById("options_list");
 
 const sendOptionOrdering = function() {
-    console.log("Trying");
     const items = document.querySelectorAll("#options_list .sortable-item");
     const optionsOrder = Array.from(items).map(item => item.getAttribute("data-option"));
     sendToServer("OptionsOrder", optionsOrder.join(","));
@@ -96,9 +95,11 @@ export const checkMessageLobby = function(serverMessage) {
     }
     else if (serverMessage.message_type == "NewOption") {
         addNewOption(serverMessage.content, optionList);
+        sendOptionOrdering();
     }
     else if (serverMessage.message_type == "DeleteOption") {
         removeOption(serverMessage.content);
+        sendOptionOrdering();
     }
     else {
         console.log("Unknown message_type:", serverMessage.message_type);

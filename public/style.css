@@ -12,12 +12,27 @@ body.centered-error-page {
 #start_btn {
     margin-left: auto;
 }
-#ranked_options_list {
+#options_list {
     list-style-type: none; 
     padding-left: 0;       
     width: calc(100% - 40px); 
     max-width: 500px;      
     margin: 0 auto;        
+}
+.delete-btn {
+    margin: 0 !important;
+    padding: 5px 10px !important;
+    width: auto !important;
+    background-color: transparent !important; 
+    border: none !important;
+    color: white; 
+    font-weight: bold;
+    cursor: pointer;
+}
+
+.delete-btn:hover {
+    color: #ff4d4d; /* Turns a nice red when hovered! */
+    background-color: transparent !important;
 }
 .hidden {
     display: none !important;
@@ -39,11 +54,15 @@ body.centered-error-page {
 }
 .sortable-item {
     cursor: grab;
-    padding: 10px;
+    padding: 10px 15px;
     margin-bottom: 5px;
     background-color: #0c5cb0;
     border-radius: 5px;
     border-right: 8px solid #073a70;
+
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
 }
 .sortable-item:active {
     cursor: grabbing;

@@ -36,18 +36,13 @@ socket.onmessage = function(event) {
     }
     const serverMessage = JSON.parse(event.data);
 
-    if (serverMessage.message_type === "ChangeState") {
-        const newState = serverMessage.message_type;
-        for (const [screenName, screenElement] of Object.entries(screens)) {
-            if (screenName === newState) {
-                screenElement?.classList.remove("hidden");
-            }
-            else {
-                screenElement?.classList.add("hidden");
-            }
-        }
+    if (serverMessage.message_type == "ChangeState") {
+        const newState = serverMessage.content;
+        Object.values(screens).forEach(screenElement => {
+            screenElement?.classList.add("hidden");
+        });
+        screens[newState].classList.remove("hidden");
         state = newState;
-        return;
     }
 
     if (state == "lobby"){

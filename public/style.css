@@ -15,3 +15,7 @@ body.centered-error-page {
 .hidden {
     display: none !important;
 }
+.centered-box {
+    max-width: 600px;     
+    margin: 0 auto;   
+}

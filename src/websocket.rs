@@ -1,6 +1,6 @@
 use crate::lobby::{
     add_option_to_room, disconnect_player_and_send_from_tower, get_player_id,
-    remove_option_from_room, switch_player_ready,
+    remove_option_from_room, switch_player_ready, update_player_option_scores,
 };
 use crate::state::{ClientMessage, GameError, GameState, MessageType, ServerMessage};
 
@@ -209,7 +209,9 @@ fn evaluate_parsed_msg(
         MessageType::PlayerToken => println!(
             "Got PlayerToken Client Message but should have already been handled in handshake"
         ),
-        MessageType::OptionsOrder => println!("Doing nothing for now"),
+        MessageType::OptionsOrder => {
+            update_player_option_scores(parsed_msg.contents, state, room_code, player_id)
+        }
         MessageType::NewOption => {
             add_option_to_room(state, parsed_msg.contents, room_code, sender);
         }
@@ -224,4 +226,5 @@ fn evaluate_parsed_msg(
 
 fn change_state(state: String, sender: &Sender<String>) {
     send_from_tower(MessageType::ChangeState, state, sender);
+    // maybe something to change the state of the GameState on the backend
 }

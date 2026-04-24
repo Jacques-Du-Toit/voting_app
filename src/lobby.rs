@@ -157,3 +157,26 @@ pub async fn get_player_id(
         }
     }
 }
+
+pub fn update_player_option_scores(
+    option_order: String,
+    state: &Arc<Mutex<HashMap<String, GameState>>>,
+    room_code: &str,
+    player_id: &str,
+) {
+    let option_order: HashMap<String, f32> = option_order
+        .split(',')
+        .enumerate()
+        .map(|(index, key)| (key.to_string(), index as f32))
+        .collect();
+    // should generalise getting all the players from the room but requires lifetimes etc.
+    let mut locked_rooms = state.lock().unwrap();
+    let players = &mut locked_rooms
+        .get_mut(room_code)
+        .expect("Room doesn't exist although we just checked in prev function?")
+        .players;
+    // also generalise changing a variable of a specific players
+    if let Some(player) = players.iter_mut().find(|p| p.name == player_id) {
+        player.option_scores = option_order;
+    }
+}

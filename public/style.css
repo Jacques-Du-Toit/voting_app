@@ -1,3 +1,9 @@
+body.centered-error-page {
+    display: grid;
+    place-items: center; 
+    height: 100vh;       
+    margin: 0;
+}
 #ready_bar {
     display: flex;
     align-items: center;

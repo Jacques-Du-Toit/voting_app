@@ -1,7 +1,11 @@
 // @ts-check
 const pathnameParts = window.location.pathname.split('/');
 export const roomCode = pathnameParts[pathnameParts.length - 1];
-export const socket = new WebSocket("ws://" + window.location.host + "/ws/" + roomCode);
+
+const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+const host = window.location.host;
+
+export const socket = new WebSocket(`${protocol}//${host}/ws/${roomCode}`);
 
 export function sendToServer(messageType, contents) {
     if (socket.readyState === WebSocket.OPEN) {

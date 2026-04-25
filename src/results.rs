@@ -1,6 +1,8 @@
-use crate::state::GameState;
+use crate::state::{GameState, MessageType};
+use crate::websocket::send_from_tower;
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
+use tokio::sync::broadcast::Sender;
 
 fn get_stats(vector: Vec<f32>) -> [f32; 4] {
     let mut min = f32::MAX;
@@ -29,7 +31,11 @@ fn get_stats(vector: Vec<f32>) -> [f32; 4] {
     [max, mean, var, min]
 }
 
-pub fn results(state: &Arc<Mutex<HashMap<String, GameState>>>, room_code: &str) {
+pub fn results(
+    state: &Arc<Mutex<HashMap<String, GameState>>>,
+    room_code: &str,
+    room_tower: &Sender<String>,
+) {
     let mut locked_rooms = state.lock().unwrap();
     let room = locked_rooms
         .get_mut(room_code)
@@ -79,5 +85,12 @@ pub fn results(state: &Arc<Mutex<HashMap<String, GameState>>>, room_code: &str) 
         }
     }
     println!("Ordered Options: {:?}", ordered_options);
-    // broadcast with the tower
+
+    for option in ordered_options {
+        let mut option_results = vec![option.clone()];
+        for stat in option_stats.get(&option).unwrap() {
+            option_results.push(stat.to_string());
+        }
+        send_from_tower(MessageType::NewOption, option_results.join(","), room_tower);
+    }
 }

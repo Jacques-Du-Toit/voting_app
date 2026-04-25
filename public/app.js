@@ -1,6 +1,7 @@
 // @ts-check
 import { sendToServer, roomCode, socket } from "./socket.js";
 import { checkMessageLobby } from "./lobby.js";
+import { checkMessageResults } from "./results.js";
 
 const savedToken = localStorage.getItem(roomCode);
 console.log(savedToken)
@@ -28,7 +29,7 @@ const screens = {
     "results": resultsScreen,
 };
 
-let state = "lobby"; // Need to ask server for the current state if someone joins late or rejoins
+let phase = "lobby"; // Need to ask server for the current phase if someone joins late or rejoins
 socket.onmessage = function(event) {
     console.log("The server says: ", event.data);
     
@@ -41,19 +42,22 @@ socket.onmessage = function(event) {
     }
     const serverMessage = JSON.parse(event.data);
 
-    if (serverMessage.message_type == "ChangeState") {
-        const newState = serverMessage.content;
+    if (serverMessage.message_type == "ChangePhase") {
+        const newPhase = serverMessage.content;
         Object.values(screens).forEach(screenElement => {
             screenElement?.classList.add("hidden");
         });
-        screens[newState].classList.remove("hidden");
-        state = newState;
+        screens[newPhase].classList.remove("hidden");
+        phase = newPhase;
     }
 
-    if (state == "lobby"){
+    if (phase == "lobby") {
         checkMessageLobby(serverMessage);
     }
+    else if (phase == "results") {
+        checkMessageResults(serverMessage);
+    }
     else {
-        console.log(`Unknown state: ${state}`);
+        console.log(`Unknown phase: ${phase}`);
     }
 };

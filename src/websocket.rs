@@ -236,7 +236,7 @@ fn evaluate_parsed_msg(
             remove_option_from_room(state, parsed_msg.contents, room_code, sender);
         }
         MessageType::ToggleReady => switch_player_ready(player_id, state, room_code, sender),
-        MessageType::ChangeState => change_phase(parsed_msg.contents, state, room_code, sender),
+        MessageType::ChangePhase => change_phase(parsed_msg.contents, state, room_code, sender),
         MessageType::Debug => println!("{}", parsed_msg.contents),
     }
 }
@@ -247,11 +247,11 @@ fn change_phase(
     room_code: &str,
     sender: &Sender<String>,
 ) {
-    send_from_tower(MessageType::ChangeState, phase.clone(), sender);
+    send_from_tower(MessageType::ChangePhase, phase.clone(), sender);
     // maybe something to change the state of the GameState on the backend
 
     match phase.to_ascii_lowercase() {
-        x if x == "results".to_string() => results(state, room_code),
+        x if x == "results".to_string() => results(state, room_code, sender),
         _ => println!("No code for phase {phase}"),
     }
 }

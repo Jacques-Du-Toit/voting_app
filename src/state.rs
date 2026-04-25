@@ -10,7 +10,7 @@ pub enum MessageType {
     NewOption,
     DeleteOption,
     ToggleReady,
-    ChangeState,
+    ChangePhase,
     Debug,
 }
 

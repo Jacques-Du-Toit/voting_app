@@ -31,7 +31,7 @@ readyBtn.onclick = function() {
 
 nextBtn.onclick = function() {
     sendOptionOrdering();
-    sendToServer("ChangeState", "results") // eventually change to select_voting
+    sendToServer("ChangePhase", "results") // eventually change to select_voting
 }
 
 form.addEventListener("submit", function(event) {

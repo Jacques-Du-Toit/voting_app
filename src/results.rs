@@ -2,8 +2,7 @@ use crate::state::GameState;
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
-// gets the mean mid max and var of a vector of floats
-fn get_stats(vector: Vec<f32>) -> (f32, f32, f32, f32) {
+fn get_stats(vector: Vec<f32>) -> [f32; 4] {
     let mut min = f32::MAX;
     let mut max = f32::MIN;
     let mut total = 0.0;
@@ -27,7 +26,7 @@ fn get_stats(vector: Vec<f32>) -> (f32, f32, f32, f32) {
     }
     var = var / count;
 
-    (mean, min, max, var)
+    [max, mean, var, min]
 }
 
 pub fn results(state: &Arc<Mutex<HashMap<String, GameState>>>, room_code: &str) {
@@ -37,7 +36,6 @@ pub fn results(state: &Arc<Mutex<HashMap<String, GameState>>>, room_code: &str) 
         .expect("Room doesn't exist although we just checked in prev function?");
 
     let mut option_final_scores: HashMap<String, Vec<f32>> = HashMap::new();
-
     for player in &room.players {
         for (option, score) in &player.option_scores {
             option_final_scores
@@ -46,6 +44,40 @@ pub fn results(state: &Arc<Mutex<HashMap<String, GameState>>>, room_code: &str) 
                 .push(score.clone());
         }
     }
+    println!("Option Scores: {:?}", option_final_scores);
 
-    println!("{:?}", option_final_scores);
+    let mut option_stats: HashMap<String, [f32; 4]> = HashMap::new();
+    for (option, scores) in option_final_scores {
+        option_stats.insert(option, get_stats(scores));
+    }
+    println!("Option Stats: {:?}", option_stats);
+
+    let mut ordered_options: Vec<String> = vec![];
+    for (new_option, new_stats) in &option_stats {
+        let mut placed = false;
+        for (i, ordered_option) in ordered_options.clone().iter().enumerate() {
+            let ordered_stats = option_stats
+                .get(ordered_option)
+                .expect("How can we not have the option?");
+            for (new_stat, ordered_stat) in new_stats.iter().zip(ordered_stats.iter()) {
+                if new_stat > ordered_stat {
+                    break; // already worse
+                } else if new_stat < ordered_stat {
+                    // move ordered option and all the options after along one, place this one here
+                    ordered_options.insert(i, new_option.to_string());
+                    placed = true; // is now placed and doesnt have to be added at the end
+                    break;
+                }
+                // otherwise they are equal and it needs to check the next stat to compare
+            }
+            if placed {
+                break;
+            };
+        }
+        if !placed {
+            ordered_options.push(new_option.to_string());
+        }
+    }
+    println!("Ordered Options: {:?}", ordered_options);
+    // broadcast with the tower
 }

@@ -2,6 +2,7 @@ use crate::lobby::{
     add_option_to_room, disconnect_player_and_send_from_tower, get_player_id,
     remove_option_from_room, switch_player_ready, update_player_option_scores,
 };
+use crate::results::results;
 use crate::state::{ClientMessage, GameError, GameState, MessageType, ServerMessage};
 
 use axum::extract::ws::{
@@ -235,12 +236,22 @@ fn evaluate_parsed_msg(
             remove_option_from_room(state, parsed_msg.contents, room_code, sender);
         }
         MessageType::ToggleReady => switch_player_ready(player_id, state, room_code, sender),
-        MessageType::ChangeState => change_state(parsed_msg.contents, sender),
+        MessageType::ChangeState => change_phase(parsed_msg.contents, state, room_code, sender),
         MessageType::Debug => println!("{}", parsed_msg.contents),
     }
 }
 
-fn change_state(state: String, sender: &Sender<String>) {
-    send_from_tower(MessageType::ChangeState, state, sender);
+fn change_phase(
+    phase: String,
+    state: &Arc<Mutex<HashMap<String, GameState>>>,
+    room_code: &str,
+    sender: &Sender<String>,
+) {
+    send_from_tower(MessageType::ChangeState, phase.clone(), sender);
     // maybe something to change the state of the GameState on the backend
+
+    match phase.to_ascii_lowercase() {
+        x if x == "results".to_string() => results(state, room_code),
+        _ => println!("No code for phase {phase}"),
+    }
 }

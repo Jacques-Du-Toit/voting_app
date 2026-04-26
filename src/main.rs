@@ -30,8 +30,10 @@ async fn main() {
         .fallback_service(ServeDir::new("public"))
         .with_state(shared_state);
 
-    let listener = TcpListener::bind("0.0.0.0:3000").await.unwrap();
-    println!("Server is running! Go to http://127.0.0.1:3000 in your browser.");
+    let port = std::env::var("PORT").unwrap_or_else(|_| "3000".to_string());
+    let addr = format!("0.0.0.0:{}", port);
+    let listener = TcpListener::bind(&addr).await.unwrap();
+    println!("Server is running on http://{}", addr);
 
     axum::serve(listener, app).await.unwrap();
 }

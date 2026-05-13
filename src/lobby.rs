@@ -144,15 +144,15 @@ pub async fn get_player_id(
                 state,
                 room_code,
                 room_tower,
-                &client_msg.contents,
+                &client_msg.content,
             );
-            Ok(client_msg.contents)
+            Ok(client_msg.content)
         }
         _ => {
             println!("A different MessageType was sent before player Id was established.");
             Err(GameError::WrongFrameType(format!(
-                "Received {:?} MessageType with contents {}",
-                client_msg.message_type, client_msg.contents
+                "Received {:?}",
+                client_msg
             )))
         }
     }

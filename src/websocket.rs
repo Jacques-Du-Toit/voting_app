@@ -227,17 +227,17 @@ fn evaluate_parsed_msg(
             "Got PlayerToken Client Message but should have already been handled in handshake"
         ),
         MessageType::OptionsOrder => {
-            update_player_option_scores(parsed_msg.contents, state, room_code, player_id)
+            update_player_option_scores(parsed_msg.content, state, room_code, player_id)
         }
         MessageType::NewOption => {
-            add_option_to_room(state, parsed_msg.contents, room_code, sender);
+            add_option_to_room(state, parsed_msg.content, room_code, sender);
         }
         MessageType::DeleteOption => {
-            remove_option_from_room(state, parsed_msg.contents, room_code, sender);
+            remove_option_from_room(state, parsed_msg.content, room_code, sender);
         }
         MessageType::ToggleReady => switch_player_ready(player_id, state, room_code, sender),
-        MessageType::ChangePhase => change_phase(parsed_msg.contents, state, room_code, sender),
-        MessageType::Debug => println!("{}", parsed_msg.contents),
+        MessageType::ChangePhase => change_phase(parsed_msg.content, state, room_code, sender),
+        MessageType::Debug => println!("{}", parsed_msg.content),
     }
 }
 

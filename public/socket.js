@@ -7,11 +7,11 @@ const host = window.location.host;
 
 export const socket = new WebSocket(`${protocol}//${host}/ws/${roomCode}`);
 
-export function sendToServer(messageType, contents) {
+export function sendToServer(messageType, content) {
     if (socket.readyState === WebSocket.OPEN) {
         const payload = {
             message_type: messageType,
-            contents: contents
+            content: content
         };
         socket.send(JSON.stringify(payload));
     } else {

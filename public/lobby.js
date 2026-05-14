@@ -26,12 +26,12 @@ if (optionList) {
 }
 
 readyBtn.onclick = function() {
-    sendToServer("ToggleReady", "")
+    sendToServer("ToggleReady", "");
 }
 
 nextBtn.onclick = function() {
     sendOptionOrdering();
-    sendToServer("ChangePhase", "results") // eventually change to select_voting
+    sendToServer("ChangePhase", "results"); // eventually change to select_voting
 }
 
 form.addEventListener("submit", function(event) {

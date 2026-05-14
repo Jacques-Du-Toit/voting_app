@@ -8,10 +8,10 @@ console.log(savedToken)
 socket.onopen = function() {
     console.log("Connected to the server!");
     if (savedToken) {
-        sendToServer("PlayerToken", `${savedToken}`)
+        sendToServer("PlayerToken", `${savedToken}`);
     }
     else {
-        sendToServer("NewPlayer", "")
+        sendToServer("NewPlayer", "");
     }
 };
 

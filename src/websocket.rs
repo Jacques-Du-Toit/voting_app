@@ -103,6 +103,8 @@ where
 {
     if let Err(e) = socket.send(Text(text.into())).await {
         println!("Error sending {text} to WebSocket due to {:?}", e);
+    } else {
+        println!("Sent to client: {text}");
     }
 }
 

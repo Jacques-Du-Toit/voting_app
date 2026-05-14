@@ -5,7 +5,7 @@ export const roomCode = pathnameParts[pathnameParts.length - 1];
 const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
 const host = window.location.host;
 
-export const socket = new WebSocket(`${protocol}//${host}/ws/${roomCode}`);
+export let socket = new WebSocket(`${protocol}//${host}/ws/${roomCode}`);
 
 export function sendToServer(messageType, content) {
     if (socket.readyState === WebSocket.OPEN) {
@@ -14,6 +14,7 @@ export function sendToServer(messageType, content) {
             content: content
         };
         socket.send(JSON.stringify(payload));
+        console.log(`Sent to server: ${JSON.stringify(payload)}`);
     } else {
         console.warn("Tried to send a message, but the socket isn't open yet!");
     }

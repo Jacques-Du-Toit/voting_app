@@ -4,8 +4,10 @@ import { checkMessageLobby } from "./lobby.js";
 import { checkMessageResults } from "./results.js";
 
 const savedToken = localStorage.getItem(roomCode);
-console.log(savedToken)
-socket.onopen = function() {
+console.log(`Saved${savedToken}`)
+
+socket.onopen = serverHandshake;
+function serverHandshake() {
     console.log("Connected to the server!");
     if (savedToken) {
         sendToServer("PlayerToken", `${savedToken}`);
@@ -30,8 +32,10 @@ const screens = {
 };
 
 let phase = "lobby"; // Need to ask server for the current phase if someone joins late or rejoins
-socket.onmessage = function(event) {
-    console.log("The server says: ", event.data);
+
+socket.onmessage = main_loop;
+function main_loop(event) {
+    console.log(`Received from server: ${event.data}`);
     
     if (event.data == "Room Not Found") {
         window.location.href = "/room_not_found";

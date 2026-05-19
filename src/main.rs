@@ -33,7 +33,7 @@ async fn main() {
     let port = std::env::var("PORT").unwrap_or_else(|_| "3000".to_string());
     let addr = format!("0.0.0.0:{}", port);
     let listener = TcpListener::bind(&addr).await.unwrap();
-    println!("Server is running on http://{}", addr);
+    println!("Server is running on http://localhost:{}", port);
 
     axum::serve(listener, app).await.unwrap();
 }

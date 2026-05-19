@@ -1,21 +1,9 @@
 // @ts-check
-import { sendToServer, roomCode, socket } from "./socket.js";
 import { checkMessageLobby } from "./lobby.js";
 import { checkMessageResults } from "./results.js";
 
-const savedToken = localStorage.getItem(roomCode);
-console.log(`Saved${savedToken}`)
-
-socket.onopen = serverHandshake;
-function serverHandshake() {
-    console.log("Connected to the server!");
-    if (savedToken) {
-        sendToServer("PlayerToken", `${savedToken}`);
-    }
-    else {
-        sendToServer("NewPlayer", "");
-    }
-};
+const pathnameParts = window.location.pathname.split('/');
+export const roomCode = pathnameParts[pathnameParts.length - 1];
 
 const roomTitle = document.getElementById("room_title");
 roomTitle.textContent = roomCode;
@@ -33,8 +21,7 @@ const screens = {
 
 let phase = "lobby"; // Need to ask server for the current phase if someone joins late or rejoins
 
-socket.onmessage = main_loop;
-function main_loop(event) {
+export function main_loop(event) {
     console.log(`Received from server: ${event.data}`);
     
     if (event.data == "Room Not Found") {
@@ -56,7 +43,7 @@ function main_loop(event) {
     }
 
     if (phase == "lobby") {
-        checkMessageLobby(serverMessage);
+        checkMessageLobby(serverMessage, roomCode);
     }
     else if (phase == "results") {
         checkMessageResults(serverMessage);

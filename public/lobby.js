@@ -1,6 +1,6 @@
 // @ts-check
 import Sortable from 'https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/+esm';
-import { sendToServer, roomCode } from "./socket.js";
+import { trySendToServer } from "./events.js";
 
 const playerCount = document.getElementById("player_count_display");
 const readyBtn = document.getElementById("ready_btn");
@@ -12,7 +12,7 @@ const optionList = document.getElementById("options_list");
 const sendOptionOrdering = function() {
     const items = document.querySelectorAll("#options_list .sortable-item");
     const optionsOrder = Array.from(items).map(item => item.getAttribute("data-option"));
-    sendToServer("OptionsOrder", optionsOrder.join(","));
+    trySendToServer("OptionsOrder", optionsOrder.join(","));
 }
 
 if (optionList) {
@@ -26,12 +26,12 @@ if (optionList) {
 }
 
 readyBtn.onclick = function() {
-    sendToServer("ToggleReady", "");
+    trySendToServer("ToggleReady", "");
 }
 
 nextBtn.onclick = function() {
     sendOptionOrdering();
-    sendToServer("ChangePhase", "results"); // eventually change to select_voting
+    trySendToServer("ChangePhase", "results"); // eventually change to select_voting
 }
 
 form.addEventListener("submit", function(event) {
@@ -40,7 +40,7 @@ form.addEventListener("submit", function(event) {
     if (optionText == "") {
         return;
     }
-    sendToServer("NewOption", optionText);    
+    trySendToServer("NewOption", optionText);    
     inputBox.value = ""; 
 });
 
@@ -55,7 +55,7 @@ const addNewOption = function(option_text, optionList) {
     const deleteBtn = document.createElement("button");
     deleteBtn.textContent = "X";
     deleteBtn.className = "delete-btn"
-    deleteBtn.onclick = function() {sendToServer("DeleteOption", optionText.textContent)};
+    deleteBtn.onclick = function() {trySendToServer("DeleteOption", optionText.textContent)};
     
     newOptionContainer.appendChild(optionText);
     newOptionContainer.appendChild(deleteBtn);
@@ -79,7 +79,7 @@ const removeOption = function(option_text) {
     };
 }
 
-export const checkMessageLobby = function(serverMessage) {
+export const checkMessageLobby = function(serverMessage, roomCode) {
     if (serverMessage.message_type == "PlayerToken") {
         localStorage.setItem(roomCode, serverMessage.content);
     }

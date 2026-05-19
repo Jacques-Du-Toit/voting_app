@@ -1,13 +1,38 @@
 // @ts-check
-const pathnameParts = window.location.pathname.split('/');
-export const roomCode = pathnameParts[pathnameParts.length - 1];
+import { roomCode, main_loop } from "./app.js";
 
 const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
 const host = window.location.host;
 
-export let socket = new WebSocket(`${protocol}//${host}/ws/${roomCode}`);
+let socket = new WebSocket(`${protocol}//${host}/ws/${roomCode}`);
+socket.onopen = serverHandshake;
+socket.onclose = reconnect;
+socket.onmessage = main_loop;
 
-export function sendToServer(messageType, content) {
+document.addEventListener("SendToServer", function(event) {
+    const messageType = event.detail.message_type;
+    const content = event.detail.content;
+    sendToServer(messageType, content);
+});
+
+function serverHandshake() {
+    console.log("Connected to the server!");
+    const savedToken = localStorage.getItem(roomCode);
+    if (savedToken) {
+        sendToServer("PlayerToken", `${savedToken}`);
+    }
+    else {
+        sendToServer("NewPlayer", "");
+    }
+};
+function reconnect() {
+    console.warn('Websocket closed - reconnecting..');
+    socket = new WebSocket(`${protocol}//${host}/ws/${roomCode}`);
+    socket.onopen = serverHandshake;
+    socket.onclose = reconnect;
+    socket.onmessage = main_loop;
+}
+function sendToServer(messageType, content) {
     if (socket.readyState === WebSocket.OPEN) {
         const payload = {
             message_type: messageType,
@@ -18,4 +43,4 @@ export function sendToServer(messageType, content) {
     } else {
         console.warn("Tried to send a message, but the socket isn't open yet!");
     }
-}
+};

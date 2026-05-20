@@ -19,7 +19,7 @@ if (optionList) {
     new Sortable(optionList, {
         animation: 150, // Adds a smooth sliding animation (in milliseconds)
         ghostClass: 'dragging-state', // The class applied to the space left behind
-        delay: 10, // Important for mobile: wait 10ms before dragging so users can still scroll the page
+        delay: 100, // Important for mobile: wait Xms before dragging so users can still scroll the page
         delayOnTouchOnly: true,
         onEnd: sendOptionOrdering
     });

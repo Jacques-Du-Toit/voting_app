@@ -45,6 +45,10 @@ form.addEventListener("submit", function(event) {
 });
 
 const addNewOption = function(option_text, optionList) {
+    // check the option doesn't already exist on the page
+    const item = document.querySelector(`[data-option="${option_text}"]`);
+    if (item) return;
+
     const newOptionContainer = document.createElement("li");
     newOptionContainer.setAttribute("data-option", option_text);
     newOptionContainer.setAttribute("class", "sortable-item");

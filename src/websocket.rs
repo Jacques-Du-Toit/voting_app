@@ -204,6 +204,7 @@ async fn send_all_current_options_to_websocket(
         }
     };
     // first send any new options they haven't seen, then ones they've already ranked
+    // TODO: Swap this when we have new options go to the top of the page instead of bottom
     let missing_options: Vec<String> = game_state_options
         .into_iter()
         .filter(|option| !player_options.contains(option))

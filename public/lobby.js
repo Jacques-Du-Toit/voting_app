@@ -53,16 +53,17 @@ const addNewOption = function(option_text, optionList) {
     newOptionContainer.setAttribute("data-option", option_text);
     newOptionContainer.setAttribute("class", "sortable-item");
 
-    const optionText = document.createElement("span");
-    optionText.textContent = option_text;
-    
     const deleteBtn = document.createElement("button");
     deleteBtn.textContent = "X";
     deleteBtn.className = "delete-btn"
     deleteBtn.onclick = function() {trySendToServer("DeleteOption", optionText.textContent)};
+
+    const optionText = document.createElement("span");
+    optionText.textContent = option_text;
+    optionText.className = "centered-box";
     
-    newOptionContainer.appendChild(optionText);
     newOptionContainer.appendChild(deleteBtn);
+    newOptionContainer.appendChild(optionText);
     
     optionList.appendChild(newOptionContainer);
 }

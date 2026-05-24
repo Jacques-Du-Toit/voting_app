@@ -28,7 +28,7 @@ fn get_stats(vector: Vec<f32>) -> [f32; 4] {
     }
     var = var / count;
 
-    [max, mean, var, min]
+    [max + 1.0, mean + 1.0, var, min + 1.0]
 }
 
 pub fn results(

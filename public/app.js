@@ -18,6 +18,7 @@ const screens = {
     "ranked_voting": rankedVotingScreen,
     "results": resultsScreen,
 };
+const tableBody = document.getElementById("results_table_body");
 
 let phase = "lobby"; // Need to ask server for the current phase if someone joins late or rejoins
 
@@ -35,6 +36,11 @@ export function main_loop(event) {
 
     if (serverMessage.message_type == "ChangePhase") {
         const newPhase = serverMessage.content;
+
+        if (newPhase == "results") {
+            tableBody.innerHTML = "";
+        }
+
         Object.values(screens).forEach(screenElement => {
             screenElement?.classList.add("hidden");
         });

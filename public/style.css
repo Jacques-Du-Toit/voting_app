@@ -1,13 +1,34 @@
 body.centered-error-page {
     display: grid;
     place-items: center; 
-    height: 100vh;       
+    height: 100vh;
     margin: 0;
 }
 #ready_bar {
     display: flex;
     align-items: center;
     gap: 20px;
+}
+.dropdown {
+    position: relative;
+    display: inline-block; 
+}
+.dropdown-content {
+    display: none;
+    position: absolute;
+    background-color: #073a70;
+    z-index: 1;
+    border-radius: 8px;
+    padding: 8px 8px;
+    text-align: center;
+    box-shadow: 0px 8px 16px 0px rgba(0, 0, 0, 0.2);
+    left: 50%;
+    transform: translateX(-50%);
+}
+.dropdown-content button {
+    display: block;
+    margin: 0;
+    width: 100%;
 }
 #next_btn {
     margin-left: auto;
@@ -29,7 +50,6 @@ body.centered-error-page {
     font-weight: bold;
     cursor: pointer;
 }
-
 .delete-btn:hover {
     color: #ff4d4d; /* Turns a nice red when hovered! */
     background-color: transparent !important;

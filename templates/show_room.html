@@ -12,8 +12,13 @@
         <div id="lobby_screen">
             <div id="ready_bar">
                 <button type="button" id="ready_btn">Ready</button>
-                <h3 id="player_count_display">0/1</h3>
-                <h3 id="lobby_title" class="centered-text">Options</h3>
+                <div class="dropdown">
+                    <button type="button" id="voting_system_btn">Rank</button>
+                    <div id="voting_system_dropdown" class="dropdown-content">
+                        <button type="button">Rank</button>
+                        <button type="button">Score</button>
+                    </div>
+                </div>
                 <button type="button" id="next_btn" disabled>Next</button>
             </div>
             <form id="option_form">

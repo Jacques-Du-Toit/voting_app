@@ -2,7 +2,6 @@
 import Sortable from 'https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/+esm';
 import { trySendToServer } from "./events.js";
 
-const playerCount = document.getElementById("player_count_display");
 const readyBtn = document.getElementById("ready_btn");
 const nextBtn = document.getElementById("next_btn");
 const form = document.getElementById("option_form");
@@ -40,7 +39,7 @@ form.addEventListener("submit", function(event) {
     if (optionText == "") {
         return;
     }
-    trySendToServer("NewOption", optionText);    
+    trySendToServer("NewOption", optionText);
     inputBox.value = ""; 
 });
 
@@ -90,7 +89,13 @@ export const checkMessageLobby = function(serverMessage, roomCode) {
     }
     else if (serverMessage.message_type == "ToggleReady") {
         const [readyTxt, allReady] = serverMessage.content.split(' ');
-        playerCount.textContent = readyTxt;
+
+        if (readyTxt.startsWith("0")) {
+            readyBtn.textContent = "Ready";
+        }
+        else {
+            readyBtn.textContent = readyTxt;
+        }
         if (allReady == "true") {
             nextBtn.disabled = false;
         }

@@ -54,6 +54,7 @@ body.centered-error-page {
     color: #ff4d4d; /* Turns a nice red when hovered! */
     background-color: transparent !important;
 }
+.show {display:block;}
 .hidden {
     display: none !important;
 }

@@ -3,6 +3,8 @@ import Sortable from 'https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/+esm';
 import { trySendToServer } from "./events.js";
 
 const readyBtn = document.getElementById("ready_btn");
+const votingSystmBtn = document.getElementById("voting_system_btn");
+const votingSystmDrpDwn = document.getElementById("voting_system_dropdown");
 const nextBtn = document.getElementById("next_btn");
 const form = document.getElementById("option_form");
 const inputBox = document.getElementById("add_option_box");
@@ -26,6 +28,10 @@ if (optionList) {
 
 readyBtn.onclick = function() {
     trySendToServer("ToggleReady", "");
+}
+
+votingSystmBtn.onclick = function() {
+    votingSystmDrpDwn.classList.toggle("show");
 }
 
 nextBtn.onclick = function() {

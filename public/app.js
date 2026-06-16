@@ -13,7 +13,6 @@ const rankedVotingScreen = document.getElementById("ranked_voting_screen");
 const resultsScreen = document.getElementById("results_screen");
 const screens = {
     "lobby": lobbyScreen,
-    "voting": votingScreen,
     "ranked_voting": rankedVotingScreen,
     "results": resultsScreen,
 };

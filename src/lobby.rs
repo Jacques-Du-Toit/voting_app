@@ -1,5 +1,5 @@
-use crate::state::{GameError, GameState, MessageType, Player, build_player};
-use crate::websocket::{receive_from_socket, send_from_tower, send_message_to_socket};
+use crate::state::{BroadcastMessage, GameError, GameState, MessageType, Player, build_player};
+use crate::websocket::{receive_from_socket, send_message_to_socket, send_to_all_websockets};
 use axum::extract::ws::WebSocket;
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
@@ -12,7 +12,7 @@ pub async fn add_new_player_and_send_to_socket_and_tower(
     state: &Arc<Mutex<HashMap<String, GameState>>>,
     room_code: &str,
     socket: &mut WebSocket,
-    room_tower: &Sender<String>,
+    room_tower: &Sender<BroadcastMessage>,
 ) -> String {
     let player_id = {
         let mut locked_rooms = state.lock().unwrap();
@@ -35,7 +35,7 @@ pub async fn add_new_player_and_send_to_socket_and_tower(
 pub fn active_old_player_and_send_from_tower(
     state: &Arc<Mutex<HashMap<String, GameState>>>,
     room_code: &str,
-    room_tower: &Sender<String>,
+    room_tower: &Sender<BroadcastMessage>,
     player_id: &str,
 ) {
     let mut locked_rooms = state.lock().unwrap();
@@ -53,7 +53,7 @@ pub fn disconnect_player_and_send_from_tower(
     player_id: String,
     state: &Arc<Mutex<HashMap<String, GameState>>>,
     room_code: &str,
-    room_tower: &Sender<String>,
+    room_tower: &Sender<BroadcastMessage>,
 ) {
     let mut locked_rooms = state.lock().unwrap();
     let players = &mut locked_rooms
@@ -71,7 +71,7 @@ pub fn switch_player_ready(
     player_id: &str,
     state: &Arc<Mutex<HashMap<String, GameState>>>,
     room_code: &str,
-    sender: &Sender<String>,
+    sender: &Sender<BroadcastMessage>,
 ) {
     let mut locked_rooms = state.lock().unwrap();
     let players = &mut locked_rooms
@@ -89,13 +89,13 @@ pub fn add_option_to_room(
     state: &Arc<Mutex<HashMap<String, GameState>>>,
     option: String,
     room_code: &str,
-    room_tower: &Sender<String>,
+    room_tower: &Sender<BroadcastMessage>,
 ) -> Option<()> {
     let mut locked_rooms = state.lock().unwrap();
     let game_state = locked_rooms.get_mut(room_code)?;
     if !game_state.options.contains(&option) && (option != "") {
         game_state.options.push(option.clone());
-        send_from_tower(MessageType::NewOption, option, room_tower);
+        send_to_all_websockets(MessageType::NewOption, option, room_tower);
     }
     Some(())
 }
@@ -104,7 +104,7 @@ pub fn remove_option_from_room(
     state: &Arc<Mutex<HashMap<String, GameState>>>,
     option: String,
     room_code: &str,
-    room_tower: &Sender<String>,
+    room_tower: &Sender<BroadcastMessage>,
 ) -> Option<()> {
     let mut locked_rooms = state.lock().unwrap();
     let game_state = locked_rooms.get_mut(room_code)?;
@@ -112,15 +112,15 @@ pub fn remove_option_from_room(
     game_state
         .options
         .retain(|existing_option| existing_option != &option);
-    send_from_tower(MessageType::DeleteOption, option, room_tower);
+    send_to_all_websockets(MessageType::DeleteOption, option, room_tower);
     Some(())
 }
 
-fn send_ready_player_count(players: &mut Vec<Player>, room_tower: &Sender<String>) {
+fn send_ready_player_count(players: &mut Vec<Player>, room_tower: &Sender<BroadcastMessage>) {
     let ready_players = players.iter().filter(|player| player.ready).count();
     let num_players = players.iter().filter(|player| player.is_connected).count();
     let all_ready = ready_players == num_players;
-    send_from_tower(
+    send_to_all_websockets(
         MessageType::ToggleReady,
         format!("{ready_players}/{num_players} {all_ready}"),
         room_tower,
@@ -131,7 +131,7 @@ pub async fn get_player_id(
     socket: &mut WebSocket,
     state: &Arc<Mutex<HashMap<String, GameState>>>,
     room_code: &str,
-    room_tower: &Sender<String>,
+    room_tower: &Sender<BroadcastMessage>,
 ) -> Result<String, GameError> {
     let client_msg = receive_from_socket(socket).await?;
     match client_msg.message_type {
@@ -179,4 +179,18 @@ pub fn update_player_option_scores(
     if let Some(player) = players.iter_mut().find(|p| p.name == player_id) {
         player.option_scores = option_order;
     }
+}
+
+pub fn rank_system(
+    state: &Arc<Mutex<HashMap<String, GameState>>>,
+    room_code: &str,
+    room_tower: &Sender<BroadcastMessage>,
+) {
+}
+
+pub fn score_system(
+    state: &Arc<Mutex<HashMap<String, GameState>>>,
+    room_code: &str,
+    room_tower: &Sender<BroadcastMessage>,
+) {
 }

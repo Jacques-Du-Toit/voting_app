@@ -10,6 +10,7 @@ pub enum MessageType {
     NewOption,
     DeleteOption,
     ToggleReady,
+    ChangeSystem,
     ChangePhase,
     Debug,
 }
@@ -24,6 +25,18 @@ pub struct ClientMessage {
 pub struct ServerMessage {
     pub message_type: MessageType,
     pub content: String,
+}
+
+#[derive(Clone)]
+pub enum BroadcastIntent {
+    WebSockets,
+    ChangeSystem,
+}
+
+#[derive(Clone)]
+pub struct BroadcastMessage {
+    pub broadcast_intent: BroadcastIntent,
+    pub broadcast_content: String,
 }
 
 #[derive(Deserialize)]
@@ -48,7 +61,7 @@ pub fn build_player(name: String) -> Player {
 }
 
 pub struct GameState {
-    pub tower: Sender<String>,
+    pub tower: Sender<BroadcastMessage>,
     pub players: Vec<Player>,
     pub options: Vec<String>,
     pub latest_id: u32,

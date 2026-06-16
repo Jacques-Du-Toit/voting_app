@@ -1,9 +1,12 @@
 use crate::lobby::{
-    add_option_to_room, disconnect_player_and_send_from_tower, get_player_id,
-    remove_option_from_room, switch_player_ready, update_player_option_scores,
+    add_option_to_room, disconnect_player_and_send_from_tower, get_player_id, rank_system,
+    remove_option_from_room, score_system, switch_player_ready, update_player_option_scores,
 };
 use crate::results::results;
-use crate::state::{ClientMessage, GameError, GameState, MessageType, ServerMessage};
+use crate::state::{
+    BroadcastIntent, BroadcastMessage, ClientMessage, GameError, GameState, MessageType,
+    ServerMessage,
+};
 
 use axum::extract::ws::{
     Message::{self, Text},
@@ -73,7 +76,7 @@ async fn handle_socket(
 fn get_sender_and_receiver(
     state: &Arc<Mutex<HashMap<String, GameState>>>,
     room_code: &str,
-) -> Option<(Sender<String>, Receiver<String>)> {
+) -> Option<(Sender<BroadcastMessage>, Receiver<BroadcastMessage>)> {
     let mut locked_rooms = state.lock().unwrap();
     let game_state = locked_rooms.get_mut(room_code)?;
 
@@ -83,14 +86,55 @@ fn get_sender_and_receiver(
     Some((new_sender, new_receiver))
 }
 
+// Sends a Message to all websockets by broadcasting it from the room tower (one-to-many)
+pub fn send_to_all_websockets(
+    message_type: MessageType,
+    content: String,
+    room_tower: &Sender<BroadcastMessage>,
+) {
+    let json_string = to_server_message_json(message_type, content);
+    let broadcast_message = BroadcastMessage {
+        broadcast_intent: BroadcastIntent::WebSockets,
+        broadcast_content: json_string,
+    };
+    let _ = room_tower.send(broadcast_message);
+}
+
+fn to_server_message_json(message_type: MessageType, content: String) -> String {
+    let outgoing_msg = ServerMessage {
+        message_type,
+        content,
+    };
+    serde_json::to_string(&outgoing_msg).unwrap()
+}
+
+// Sends a String to all the async clients by boradcasting it from the tower (one-to-many)
+fn send_to_all_clients(
+    broadcast_intent: BroadcastIntent,
+    broadcast_content: String,
+    room_tower: &Sender<BroadcastMessage>,
+) {
+    let broadcast_message = BroadcastMessage {
+        broadcast_intent,
+        broadcast_content,
+    };
+    let _ = room_tower.send(broadcast_message);
+}
+
 /// Used to check if there are any new messages from the receiver,
-/// messages from here will have been sent to all websockets.
+/// will either send it to its websocket or run other code depending on destination
 async fn check_receiver(
-    receiver: &mut Receiver<String>,
+    receiver: &mut Receiver<BroadcastMessage>,
     socket: &mut SplitSink<WebSocket, Message>,
 ) {
     match receiver.recv().await {
-        Ok(json_str) => send_to_socket(socket, &json_str).await,
+        Ok(BroadcastMessage {
+            broadcast_intent,
+            broadcast_content,
+        }) => match broadcast_intent {
+            BroadcastIntent::WebSockets => send_to_socket(socket, &broadcast_content).await,
+            BroadcastIntent::ChangeSystem => {}
+        },
         Err(e) => println!("Error receiving json_str {:?}", e),
     };
 }
@@ -108,6 +152,7 @@ where
     }
 }
 
+// this sends a Message to the websocket connected to its host (one-to-one)
 pub async fn send_message_to_socket<S, E>(
     message_type: MessageType,
     content: String,
@@ -143,7 +188,7 @@ async fn check_message(
     socket: &mut SplitStream<WebSocket>,
     state: &Arc<Mutex<HashMap<String, GameState>>>,
     room_code: &str,
-    sender: &Sender<String>,
+    sender: &Sender<BroadcastMessage>,
     player_id: &str,
 ) -> bool {
     match receive_from_socket(socket).await {
@@ -164,17 +209,37 @@ async fn check_message(
     }
 }
 
-pub fn send_from_tower(message_type: MessageType, content: String, room_tower: &Sender<String>) {
-    let json_string = to_server_message_json(message_type, content);
-    let _ = room_tower.send(json_string);
-}
-
-fn to_server_message_json(message_type: MessageType, content: String) -> String {
-    let outgoing_msg = ServerMessage {
-        message_type,
-        content,
-    };
-    serde_json::to_string(&outgoing_msg).unwrap()
+/// Calls certain code when a message is received from the websocket
+fn evaluate_parsed_msg(
+    parsed_msg: ClientMessage,
+    state: &Arc<Mutex<HashMap<String, GameState>>>,
+    room_code: &str,
+    room_tower: &Sender<BroadcastMessage>,
+    player_id: &str,
+) {
+    match parsed_msg.message_type {
+        MessageType::NewPlayer => println!(
+            "Got NewPlayer Client Message but should have already been handled in handshake"
+        ),
+        MessageType::PlayerToken => println!(
+            "Got PlayerToken Client Message but should have already been handled in handshake"
+        ),
+        MessageType::OptionsOrder => {
+            update_player_option_scores(parsed_msg.content, state, room_code, player_id)
+        }
+        MessageType::NewOption => {
+            add_option_to_room(state, parsed_msg.content, room_code, room_tower);
+        }
+        MessageType::DeleteOption => {
+            remove_option_from_room(state, parsed_msg.content, room_code, room_tower);
+        }
+        MessageType::ToggleReady => switch_player_ready(player_id, state, room_code, room_tower),
+        MessageType::ChangeSystem => {
+            send_to_all_clients(BroadcastIntent::ChangeSystem, "".to_string(), room_tower);
+        }
+        MessageType::ChangePhase => change_phase(parsed_msg.content, state, room_code, room_tower),
+        MessageType::Debug => println!("{}", parsed_msg.content),
+    }
 }
 
 fn hashmap_to_vector(map: HashMap<String, f32>) -> Vec<String> {
@@ -214,33 +279,20 @@ async fn send_all_current_options_to_websocket(
     }
 }
 
-/// Calls certain code when a message is received from the websocket
-fn evaluate_parsed_msg(
-    parsed_msg: ClientMessage,
+fn change_system(
+    system: String,
     state: &Arc<Mutex<HashMap<String, GameState>>>,
     room_code: &str,
-    sender: &Sender<String>,
-    player_id: &str,
+    room_tower: &Sender<BroadcastMessage>,
 ) {
-    match parsed_msg.message_type {
-        MessageType::NewPlayer => println!(
-            "Got NewPlayer Client Message but should have already been handled in handshake"
-        ),
-        MessageType::PlayerToken => println!(
-            "Got PlayerToken Client Message but should have already been handled in handshake"
-        ),
-        MessageType::OptionsOrder => {
-            update_player_option_scores(parsed_msg.content, state, room_code, player_id)
-        }
-        MessageType::NewOption => {
-            add_option_to_room(state, parsed_msg.content, room_code, sender);
-        }
-        MessageType::DeleteOption => {
-            remove_option_from_room(state, parsed_msg.content, room_code, sender);
-        }
-        MessageType::ToggleReady => switch_player_ready(player_id, state, room_code, sender),
-        MessageType::ChangePhase => change_phase(parsed_msg.content, state, room_code, sender),
-        MessageType::Debug => println!("{}", parsed_msg.content),
+    // let all websockets know to change to this new system on front end
+    send_to_all_websockets(MessageType::ChangeSystem, system.clone(), room_tower);
+
+    // do the other backend work on this client
+    match system.to_ascii_lowercase() {
+        x if x == "rank".to_string() => rank_system(state, room_code, room_tower),
+        x if x == "score".to_string() => score_system(state, room_code, room_tower),
+        _ => println!("No code for system {system}"),
     }
 }
 
@@ -248,13 +300,13 @@ fn change_phase(
     phase: String,
     state: &Arc<Mutex<HashMap<String, GameState>>>,
     room_code: &str,
-    sender: &Sender<String>,
+    room_tower: &Sender<BroadcastMessage>,
 ) {
-    send_from_tower(MessageType::ChangePhase, phase.clone(), sender);
+    send_to_all_websockets(MessageType::ChangePhase, phase.clone(), room_tower);
     // maybe something to change the state of the GameState on the backend
 
     match phase.to_ascii_lowercase() {
-        x if x == "results".to_string() => results(state, room_code, sender),
+        x if x == "results".to_string() => results(state, room_code, room_tower),
         _ => println!("No code for phase {phase}"),
     }
 }

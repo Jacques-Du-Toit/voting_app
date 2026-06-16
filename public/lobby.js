@@ -48,8 +48,9 @@ const turnSystemOn = function(system) {
     Object.values(systemScreens).forEach(screenElement => {
         screenElement?.classList.add("hidden");
     });
-    systemScreens[system].classList.remove("hidden");
-    votingSystmBtn.textContent = system;
+    trySendToServer("ChangeSystem", system);
+    //systemScreens[system].classList.remove("hidden");
+    //votingSystmBtn.textContent = system;
 }
 
 rankSystmBtn.onclick = function() {

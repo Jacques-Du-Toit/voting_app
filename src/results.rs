@@ -1,5 +1,5 @@
-use crate::state::{GameState, MessageType};
-use crate::websocket::send_from_tower;
+use crate::state::{BroadcastMessage, GameState, MessageType};
+use crate::websocket::send_to_all_websockets;
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 use tokio::sync::broadcast::Sender;
@@ -34,7 +34,7 @@ fn get_stats(vector: Vec<f32>) -> [f32; 4] {
 pub fn results(
     state: &Arc<Mutex<HashMap<String, GameState>>>,
     room_code: &str,
-    room_tower: &Sender<String>,
+    room_tower: &Sender<BroadcastMessage>,
 ) {
     let mut locked_rooms = state.lock().unwrap();
     let room = locked_rooms
@@ -91,6 +91,6 @@ pub fn results(
         for stat in option_stats.get(&option).unwrap() {
             option_results.push(stat.to_string());
         }
-        send_from_tower(MessageType::NewOption, option_results.join(","), room_tower);
+        send_to_all_websockets(MessageType::NewOption, option_results.join(","), room_tower);
     }
 }

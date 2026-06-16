@@ -5,6 +5,8 @@ import { trySendToServer } from "./events.js";
 const readyBtn = document.getElementById("ready_btn");
 const votingSystmBtn = document.getElementById("voting_system_btn");
 const votingSystmDrpDwn = document.getElementById("voting_system_dropdown");
+const rankSystmBtn = document.getElementById("rank_system_btn");
+const scoreSystmBtn = document.getElementById("score_system_btn");
 const nextBtn = document.getElementById("next_btn");
 const form = document.getElementById("option_form");
 const inputBox = document.getElementById("add_option_box");
@@ -34,9 +36,17 @@ votingSystmBtn.onclick = function() {
     votingSystmDrpDwn.classList.toggle("show");
 }
 
+rankSystmBtn.onclick = function() {
+    votingSystmDrpDwn.classList.toggle("show");
+}
+
+scoreSystmBtn.onclick = function() {
+    votingSystmDrpDwn.classList.toggle("show");
+}
+
 nextBtn.onclick = function() {
     sendOptionOrdering();
-    trySendToServer("ChangePhase", "results"); // eventually change to select_voting
+    trySendToServer("ChangePhase", "results");
 }
 
 form.addEventListener("submit", function(event) {

@@ -6,11 +6,18 @@ const readyBtn = document.getElementById("ready_btn");
 const votingSystmBtn = document.getElementById("voting_system_btn");
 const votingSystmDrpDwn = document.getElementById("voting_system_dropdown");
 const rankSystmBtn = document.getElementById("rank_system_btn");
+const rankScreen = document.getElementById("rank_system_screen");
 const scoreSystmBtn = document.getElementById("score_system_btn");
+const scoreScreen = document.getElementById("score_system_screen");
 const nextBtn = document.getElementById("next_btn");
 const form = document.getElementById("option_form");
 const inputBox = document.getElementById("add_option_box");
 const optionList = document.getElementById("options_list");
+
+const systemScreens = {
+    "Rank": rankScreen,
+    "Score": scoreScreen,
+};
 
 const sendOptionOrdering = function() {
     const items = document.querySelectorAll("#options_list .sortable-item");
@@ -36,12 +43,21 @@ votingSystmBtn.onclick = function() {
     votingSystmDrpDwn.classList.toggle("show");
 }
 
-rankSystmBtn.onclick = function() {
+const turnSystemOn = function(system) {
     votingSystmDrpDwn.classList.toggle("show");
+    Object.values(systemScreens).forEach(screenElement => {
+        screenElement?.classList.add("hidden");
+    });
+    systemScreens[system].classList.remove("hidden");
+    votingSystmBtn.textContent = system;
+}
+
+rankSystmBtn.onclick = function() {
+    turnSystemOn("Rank");
 }
 
 scoreSystmBtn.onclick = function() {
-    votingSystmDrpDwn.classList.toggle("show");
+    turnSystemOn("Score");
 }
 
 nextBtn.onclick = function() {

@@ -39,26 +39,24 @@ readyBtn.onclick = function() {
     trySendToServer("ToggleReady", "");
 }
 
+const startSystemChange = function(system) {
+    votingSystmDrpDwn.classList.toggle("show");
+    if (votingSystmBtn.textContent == system) {
+        return; // already on this voting system
+    }
+    trySendToServer("ChangeSystem", system);
+}
+
 votingSystmBtn.onclick = function() {
     votingSystmDrpDwn.classList.toggle("show");
 }
 
-const turnSystemOn = function(system) {
-    votingSystmDrpDwn.classList.toggle("show");
-    Object.values(systemScreens).forEach(screenElement => {
-        screenElement?.classList.add("hidden");
-    });
-    trySendToServer("ChangeSystem", system);
-    //systemScreens[system].classList.remove("hidden");
-    //votingSystmBtn.textContent = system;
-}
-
 rankSystmBtn.onclick = function() {
-    turnSystemOn("Rank");
+    startSystemChange("Rank")
 }
 
 scoreSystmBtn.onclick = function() {
-    turnSystemOn("Score");
+    startSystemChange("Score")
 }
 
 nextBtn.onclick = function() {
@@ -75,6 +73,14 @@ form.addEventListener("submit", function(event) {
     trySendToServer("NewOption", optionText);
     inputBox.value = ""; 
 });
+
+const turnSystemOn = function(system) {
+    Object.values(systemScreens).forEach(screenElement => {
+        screenElement?.classList.add("hidden");
+    });
+    systemScreens[system].classList.remove("hidden");
+    votingSystmBtn.textContent = system;
+}
 
 const addNewOption = function(option_text, optionList) {
     // check the option doesn't already exist on the page
@@ -119,6 +125,9 @@ const removeOption = function(option_text) {
 export const checkMessageLobby = function(serverMessage, roomCode) {
     if (serverMessage.message_type == "PlayerToken") {
         localStorage.setItem(roomCode, serverMessage.content);
+    }
+    else if (serverMessage.message_type == "ChangeSystem") {
+        turnSystemOn(serverMessage.content);
     }
     else if (serverMessage.message_type == "ToggleReady") {
         const [readyTxt, allReady] = serverMessage.content.split(' ');

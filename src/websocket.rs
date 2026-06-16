@@ -40,14 +40,14 @@ async fn handle_socket(
 ) {
     println!("Someone connected to room {room_code}");
 
-    let (sender, mut receiver) = match get_sender_and_receiver(&state, &room_code) {
+    let (room_tower, mut receiver) = match get_sender_and_receiver(&state, &room_code) {
         Some((s, r)) => (s, r),
         None => {
             send_to_socket(&mut socket, "Room Not Found").await;
             return;
         }
     };
-    let player_id = match get_player_id(&mut socket, &state, &room_code, &sender).await {
+    let player_id = match get_player_id(&mut socket, &state, &room_code, &room_tower).await {
         Ok(id) => id,
         Err(e) => {
             println!("Couldn't read player id {:?}", e);
@@ -62,13 +62,13 @@ async fn handle_socket(
 
     loop {
         tokio::select! {
-            _ = check_receiver(&mut receiver, &mut socket_write) => {}
-            connected = check_message(&mut socket_read, &state, &room_code, &sender, &player_id) => {
+            _ = check_receiver(&mut receiver, &mut socket_write, &state, &room_code, &player_id) => {}
+            connected = check_message(&mut socket_read, &state, &room_code, &room_tower, &player_id) => {
                 if !connected { break };
             }
         }
     }
-    disconnect_player_and_send_from_tower(player_id, &state, &room_code, &sender);
+    disconnect_player_and_send_from_tower(player_id, &state, &room_code, &room_tower);
 }
 
 /// Creates a copy of a room's sender and receiver objects,
@@ -126,6 +126,9 @@ fn send_to_all_clients(
 async fn check_receiver(
     receiver: &mut Receiver<BroadcastMessage>,
     socket: &mut SplitSink<WebSocket, Message>,
+    state: &Arc<Mutex<HashMap<String, GameState>>>,
+    room_code: &str,
+    player_id: &str,
 ) {
     match receiver.recv().await {
         Ok(BroadcastMessage {
@@ -133,7 +136,9 @@ async fn check_receiver(
             broadcast_content,
         }) => match broadcast_intent {
             BroadcastIntent::WebSockets => send_to_socket(socket, &broadcast_content).await,
-            BroadcastIntent::ChangeSystem => {}
+            BroadcastIntent::ChangeSystem => {
+                change_system(broadcast_content, state, room_code, player_id, socket).await;
+            }
         },
         Err(e) => println!("Error receiving json_str {:?}", e),
     };
@@ -235,7 +240,11 @@ fn evaluate_parsed_msg(
         }
         MessageType::ToggleReady => switch_player_ready(player_id, state, room_code, room_tower),
         MessageType::ChangeSystem => {
-            send_to_all_clients(BroadcastIntent::ChangeSystem, "".to_string(), room_tower);
+            send_to_all_clients(
+                BroadcastIntent::ChangeSystem,
+                parsed_msg.content,
+                room_tower,
+            );
         }
         MessageType::ChangePhase => change_phase(parsed_msg.content, state, room_code, room_tower),
         MessageType::Debug => println!("{}", parsed_msg.content),
@@ -279,19 +288,21 @@ async fn send_all_current_options_to_websocket(
     }
 }
 
-fn change_system(
+async fn change_system(
     system: String,
     state: &Arc<Mutex<HashMap<String, GameState>>>,
     room_code: &str,
-    room_tower: &Sender<BroadcastMessage>,
+    player_id: &str,
+    socket: &mut SplitSink<WebSocket, Message>,
 ) {
-    // let all websockets know to change to this new system on front end
-    send_to_all_websockets(MessageType::ChangeSystem, system.clone(), room_tower);
+    // all clients have been told so only need to tell own websocket to switch frontend
+    send_message_to_socket(MessageType::ChangeSystem, system.clone(), socket).await;
 
-    // do the other backend work on this client
+    // this client needs to prepare its own options etc. for its specific front end voting system screen
     match system.to_ascii_lowercase() {
-        x if x == "rank".to_string() => rank_system(state, room_code, room_tower),
-        x if x == "score".to_string() => score_system(state, room_code, room_tower),
+        // these probably need player_id as well? and we need to pass it through the functions along with state etc.
+        x if x == "rank".to_string() => rank_system(state, room_code, player_id, socket),
+        x if x == "score".to_string() => score_system(state, room_code, player_id, socket),
         _ => println!("No code for system {system}"),
     }
 }
@@ -302,9 +313,11 @@ fn change_phase(
     room_code: &str,
     room_tower: &Sender<BroadcastMessage>,
 ) {
+    // this 1 client does all the work of letting all websockets know to change front end
     send_to_all_websockets(MessageType::ChangePhase, phase.clone(), room_tower);
     // maybe something to change the state of the GameState on the backend
 
+    // this 1 client does all the results work on its own and sends to all websockets
     match phase.to_ascii_lowercase() {
         x if x == "results".to_string() => results(state, room_code, room_tower),
         _ => println!("No code for phase {phase}"),

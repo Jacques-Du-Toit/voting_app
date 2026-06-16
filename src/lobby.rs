@@ -1,6 +1,8 @@
 use crate::state::{BroadcastMessage, GameError, GameState, MessageType, Player, build_player};
 use crate::websocket::{receive_from_socket, send_message_to_socket, send_to_all_websockets};
+use axum::extract::ws::Message;
 use axum::extract::ws::WebSocket;
+use futures::stream::SplitSink;
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 use tokio::sync::broadcast::Sender;
@@ -184,13 +186,15 @@ pub fn update_player_option_scores(
 pub fn rank_system(
     state: &Arc<Mutex<HashMap<String, GameState>>>,
     room_code: &str,
-    room_tower: &Sender<BroadcastMessage>,
+    player_id: &str,
+    socket: &mut SplitSink<WebSocket, Message>,
 ) {
 }
 
 pub fn score_system(
     state: &Arc<Mutex<HashMap<String, GameState>>>,
     room_code: &str,
-    room_tower: &Sender<BroadcastMessage>,
+    player_id: &str,
+    socket: &mut SplitSink<WebSocket, Message>,
 ) {
 }

@@ -74,12 +74,17 @@ form.addEventListener("submit", function(event) {
     inputBox.value = ""; 
 });
 
+const deleteAllOptions = function() {
+    document.querySelectorAll("[data-option]").forEach(el => el.remove());
+}
+
 const turnSystemOn = function(system) {
     Object.values(systemScreens).forEach(screenElement => {
         screenElement?.classList.add("hidden");
     });
     systemScreens[system].classList.remove("hidden");
     votingSystmBtn.textContent = system;
+    deleteAllOptions();
 }
 
 const addNewOption = function(option_text, optionList) {
